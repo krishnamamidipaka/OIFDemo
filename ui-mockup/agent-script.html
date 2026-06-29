@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Agent Script Execution</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: white;
+        }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .separator { color: var(--text-muted); }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .layout { display: flex; height: calc(100vh - 48px); }
+        .sidebar {
+            width: 52px; background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px;
+        }
+        .sidebar-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; font-size: 16px;
+        }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .sidebar-spacer { flex: 1; }
+
+        .main-content { flex: 1; display: flex; overflow: hidden; }
+
+        /* Left: Script Pipeline */
+        .pipeline-panel {
+            width: 380px;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+        }
+
+        .pipeline-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .pipeline-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .pipeline-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .pipeline-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .pipeline-status .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        .pipeline-status .status-text {
+            font-size: 12px; font-weight: 500; color: var(--accent-green);
+        }
+
+        .pipeline-steps {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .step {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 32px;
+            bottom: -8px;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: var(--accent-green);
+        }
+
+        .step.active:not(:last-child)::after {
+            background: linear-gradient(to bottom, var(--accent-cyan), var(--border-color));
+        }
+
+        .step-indicator {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            border: 2px solid;
+        }
+
+        .step.completed .step-indicator {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .step.active .step-indicator {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            animation: pulse 2s infinite;
+        }
+
+        .step.pending .step-indicator {
+            background: var(--bg-card);
+            border-color: var(--border-accent);
+            color: var(--text-muted);
+        }
+
+        .step.waiting .step-indicator {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+        }
+
+        .step-content {
+            flex: 1;
+            padding-top: 4px;
+        }
+
+        .step-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+        }
+
+        .step-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .step-metrics {
+            display: flex;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .step-metric {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .step-metric .metric-val {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .step-duration {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Right: Output Preview */
+        .output-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-tabs {
+            display: flex;
+            padding: 0 20px;
+            height: 40px;
+            align-items: center;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            gap: 4px;
+        }
+
+        .output-tab {
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .output-tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .output-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .draft-briefing {
+            max-width: 720px;
+        }
+
+        .draft-header {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .draft-classification {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--accent-yellow);
+            margin-bottom: 8px;
+        }
+
+        .draft-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .draft-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .draft-section {
+            margin-bottom: 20px;
+        }
+
+        .draft-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .draft-paragraph {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .source-cite {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .source-cite:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .confidence-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }
+
+        .confidence-tag.high {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .confidence-tag.medium {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent-yellow);
+        }
+
+        .review-banner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .review-banner .banner-icon {
+            font-size: 18px;
+        }
+
+        .review-banner .banner-text {
+            flex: 1;
+        }
+
+        .review-banner .banner-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--accent-yellow);
+        }
+
+        .review-banner .banner-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .review-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .review-btn.approve {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .review-btn.edit {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-accent);
+        }
+
+        .review-btn.reject {
+            background: var(--bg-card);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Trace panel at bottom */
+        .trace-panel {
+            height: 180px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            overflow-y: auto;
+        }
+
+        .trace-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .trace-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .trace-time {
+            color: var(--text-muted);
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 10px;
+        }
+
+        .trace-level {
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .trace-level.info { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+        .trace-level.success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .trace-level.warn { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
+        .trace-level.active { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+
+        .trace-msg {
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span class="separator">/</span>
+            <span>Agent Scripts</span>
+            <span class="separator">/</span>
+            <span class="active">Morning Roll-Up (Running)</span>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-icon">&#x25A3;</div>
+            <div class="sidebar-icon">&#x1F5FA;</div>
+            <div class="sidebar-icon">&#x1F4CA;</div>
+            <div class="sidebar-icon">&#x25CB;</div>
+            <div class="sidebar-icon">&#x1F50D;</div>
+            <div class="sidebar-icon active">&#x26A1;</div>
+            <div class="sidebar-icon">&#x1F465;</div>
+            <div class="sidebar-spacer"></div>
+            <div class="sidebar-icon">&#x1F512;</div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Left: Pipeline Steps -->
+            <div class="pipeline-panel">
+                <div class="pipeline-header">
+                    <div class="pipeline-title">CENTCOM Morning Roll-Up</div>
+                    <div class="pipeline-subtitle">Agent Script v3.2 | Triggered 0415Z by schedule</div>
+                    <div class="pipeline-status">
+                        <div class="status-dot"></div>
+                        <span class="status-text">Step 5 of 6: Awaiting Analyst Review</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-steps">
+                    <div class="step completed">
+                        <div class="step-indicator">&#x2713;</div>
+                        <div class="step-content">
+                            <div class="step-title">1. INGEST</div>
+                            <div class="step-desc">Federated query across operational reports, sensor detections, and message traffic (last 12 hours)</div>
+                            <div class="step-metrics">
+                                <span class="step-metric">Sources queried: <span class="metric-val">5</span></span>
+                                <span class="step-metric">Records: <span class="metric-val">1,247</span></span>
+                            </div>
+                            <div class="step-duration">Completed in 8.3s</div>
+                        </div>
+                    </div>
+
+                    <div class="step completed">
+                        <div class="step-indicator">&#x2713;</div>
+                        <div class="step-content">
+                            <div class="step-title">2. CORRELATE</div>
+                            <div class="step-desc">Entity resolution across sources. New entity identification. Association mapping.</div>
+                            <div class="step-metrics">
+                                <span class="step-metric">Entities resolved: <span class="metric-val">34</span></span>
+                                <span class="step-metric">New links: <span class="metric-val">7</span></span>
+                                <span class="step-metric">New entities: <span class="metric-val">2</span></span>
+                            </div>
+                            <div class="step-duration">Completed in 12.1s</div>
+                        </div>
+                    </div>
+
+                    <div class="step completed">
+                        <div class="step-indicator">&#x2713;</div>
+                        <div class="step-content">
+                            <div class="step-title">3. ANALYZE</div>
+                            <div class="step-desc">Anomaly detection on movement patterns. Trend comparison vs. 30-day baseline. Confidence scoring.</div>
+                            <div class="step-metrics">
+                                <span class="step-metric">Anomalies: <span class="metric-val">3</span></span>
+                                <span class="step-metric">Trends: <span class="metric-val">2 escalating</span></span>
+                            </div>
+                            <div class="step-duration">Completed in 18.7s</div>
+                        </div>
+                    </div>
+
+                    <div class="step completed">
+                        <div class="step-indicator">&#x2713;</div>
+                        <div class="step-content">
+                            <div class="step-title">4. COMPOSE</div>
+                            <div class="step-desc">Narrative generation with source citations. Map overlays and charts produced. Formatted per leadership template.</div>
+                            <div class="step-metrics">
+                                <span class="step-metric">Sections: <span class="metric-val">4</span></span>
+                                <span class="step-metric">Citations: <span class="metric-val">18</span></span>
+                                <span class="step-metric">Charts: <span class="metric-val">3</span></span>
+                            </div>
+                            <div class="step-duration">Completed in 6.4s</div>
+                        </div>
+                    </div>
+
+                    <div class="step waiting">
+                        <div class="step-indicator">&#x21;</div>
+                        <div class="step-content">
+                            <div class="step-title">5. REVIEW (Human Checkpoint)</div>
+                            <div class="step-desc">Draft routed to duty analyst for validation. Analyst may edit, approve, or reject sections.</div>
+                            <div class="step-metrics">
+                                <span class="step-metric">Assigned to: <span class="metric-val">SSgt Rivera, J.</span></span>
+                                <span class="step-metric">Waiting: <span class="metric-val">4 min</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step pending">
+                        <div class="step-indicator">6</div>
+                        <div class="step-content">
+                            <div class="step-title">6. PUBLISH</div>
+                            <div class="step-desc">Push approved product to leadership dashboard. Publish event to mesh. Archive with full lineage.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Output -->
+            <div class="output-panel">
+                <div class="output-tabs">
+                    <div class="output-tab active">Draft Briefing</div>
+                    <div class="output-tab">Map Overlays</div>
+                    <div class="output-tab">Charts</div>
+                    <div class="output-tab">Source Data</div>
+                    <div class="output-tab">Lineage</div>
+                </div>
+
+                <div class="output-content">
+                    <div class="review-banner">
+                        <span class="banner-icon">&#x1F6A8;</span>
+                        <div class="banner-text">
+                            <div class="banner-title">Awaiting Your Review</div>
+                            <div class="banner-desc">This draft was generated by Agent Script "Morning Roll-Up v3.2" at 0416Z. Review all sections before approving for publication to the leadership dashboard.</div>
+                        </div>
+                        <div class="review-actions">
+                            <button class="review-btn approve">Approve All</button>
+                            <button class="review-btn edit">Edit</button>
+                            <button class="review-btn reject">Reject</button>
+                        </div>
+                    </div>
+
+                    <div class="draft-briefing">
+                        <div class="draft-header">
+                            <div class="draft-classification">UNCLASSIFIED // FOR DEMONSTRATION PURPOSES ONLY</div>
+                            <div class="draft-title">CENTCOM Daily Situation Summary</div>
+                            <div class="draft-meta">Period: 1800Z 25 Jun to 0600Z 26 Jun 2026 | Certified Dataset: v2026-0626.3</div>
+                        </div>
+
+                        <div class="draft-section">
+                            <div class="draft-section-title">Key Developments</div>
+                            <div class="draft-paragraph">
+                                Three significant developments occurred during the reporting period. Entity CARDINAL-7, tracked continuously over the past 90 days along Route AMBER corridor, deviated 12 kilometers from its established pattern of life at 0342Z. The deviation bearing is inconsistent with any previously observed movement and places the entity in proximity to a newly identified staging area. <span class="source-cite">Sensor: Track 4417</span> <span class="source-cite">Imagery: Pass 0600Z</span> <span class="confidence-tag high">HIGH</span>
+                            </div>
+                            <div class="draft-paragraph">
+                                SIGINT collection in grid 38TLM detected a 270% increase in communications volume relative to the 7-day average, with multiple previously unobserved emitters active. This increase correlates temporally with CARDINAL-7's route deviation and geographically with the compound where new vehicle signatures were identified. <span class="source-cite">SIGINT: Collection 0315Z</span> <span class="source-cite">Imagery: Commercial Vendor B</span> <span class="confidence-tag high">HIGH</span>
+                            </div>
+                            <div class="draft-paragraph">
+                                HUMINT reporting from local liaison sources characterizes vehicle movement in the area as "unusual but not unprecedented" for the time of year. While the source provides limited corroboration, the temporal and geographic convergence of sensor, SIGINT, and HUMINT indicators warrants continued monitoring at enhanced priority. <span class="source-cite">HUMINT: Cable CENTCOM-2026-4491</span> <span class="confidence-tag medium">MEDIUM (single source)</span>
+                            </div>
+                        </div>
+
+                        <div class="draft-section">
+                            <div class="draft-section-title">Entity Status Summary</div>
+                            <div class="draft-paragraph">
+                                Of 342 actively tracked entities, 7 triggered anomaly alerts during the period (3 HIGH, 4 MEDIUM). Entity CARDINAL-7 remains the top priority with an anomaly score of 0.94. Entity WREN-12 continues a 21-day escalating communications trend (+340% against 18-month baseline). Entity FINCH-3 has a newly proposed correlation across 3 independent sources awaiting analyst validation. <span class="source-cite">Analytics: Entity Resolution Engine</span> <span class="source-cite">Analytics: Trend Detection v2.3</span>
+                            </div>
+                        </div>
+
+                        <div class="draft-section">
+                            <div class="draft-section-title">Collection Posture</div>
+                            <div class="draft-paragraph">
+                                47 of 52 active feeds reporting within SLA. Sensor Cluster East experiencing intermittent connectivity (3 of 8 feeds affected since 1830Z). Affected coverage areas have been flagged with staleness indicators. No impact to primary entities of interest. Commercial satellite next scheduled pass over grid 38TLM: 0930Z today. <span class="source-cite">System: Feed Health Monitor</span>
+                            </div>
+                        </div>
+
+                        <div class="draft-section">
+                            <div class="draft-section-title">Recommendations</div>
+                            <div class="draft-paragraph">
+                                1. Elevate CARDINAL-7 monitoring to continuous priority. Request dedicated ISR allocation for next 48 hours. 2. Task SIGINT collection to identify emitter patterns in grid 38TLM and attempt correlation with known networks. 3. Validate FINCH-3 entity correlation at earliest opportunity (pending analyst review queue).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trace Log -->
+                <div class="trace-panel">
+                    <div class="trace-title">Execution Trace (Audit Log)</div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:00Z</span>
+                        <span class="trace-level info">START</span>
+                        <span class="trace-msg">Agent Script "Morning Roll-Up v3.2" triggered by schedule (daily 0415Z)</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:01Z</span>
+                        <span class="trace-level info">INGEST</span>
+                        <span class="trace-msg">Federated query dispatched to 5 sources: OpReps, Sensors, GIS, OSINT, MsgTraffic</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:09Z</span>
+                        <span class="trace-level success">INGEST</span>
+                        <span class="trace-msg">Query complete: 1,247 records retrieved. Certified Dataset v2026-0626.3 referenced.</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:10Z</span>
+                        <span class="trace-level info">CORRELATE</span>
+                        <span class="trace-msg">Entity resolution engine invoked. Model: GraphMatch v4.1. Threshold: 0.65</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:22Z</span>
+                        <span class="trace-level success">CORRELATE</span>
+                        <span class="trace-msg">34 entities resolved, 7 new association links, 2 new entities proposed</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:23Z</span>
+                        <span class="trace-level info">ANALYZE</span>
+                        <span class="trace-msg">Anomaly detection (IsolationForest v2.1) + Trend detection (ChangePt v1.8) invoked</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:41Z</span>
+                        <span class="trace-level warn">ANALYZE</span>
+                        <span class="trace-msg">3 anomalies exceed threshold: CARDINAL-7 (0.94), WREN-12 (0.81), Track 4423 (0.72)</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:42Z</span>
+                        <span class="trace-level info">COMPOSE</span>
+                        <span class="trace-msg">Narrative generation invoked. Template: CENTCOM-SITREP-DAILY. Model: Apex-LLM-Summarize v3</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:48Z</span>
+                        <span class="trace-level success">COMPOSE</span>
+                        <span class="trace-msg">Draft complete: 4 sections, 18 source citations, 3 charts generated</span>
+                    </div>
+                    <div class="trace-entry">
+                        <span class="trace-time">0415:48Z</span>
+                        <span class="trace-level active">REVIEW</span>
+                        <span class="trace-msg">Human checkpoint reached. Draft routed to SSgt Rivera, J. (duty analyst). Awaiting action.</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
+// Agent script animations for demo
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes step-pulse {',
+        '  0%, 100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }',
+        '  50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.4); }',
+        '}',
+        '@keyframes waiting-dots {',
+        '  0% { content: "."; }',
+        '  33% { content: ".."; }',
+        '  66% { content: "..."; }',
+        '}',
+        '.step-waiting { animation: step-pulse 2s ease-in-out infinite; }',
+        '@keyframes citation-highlight {',
+        '  0%, 100% { background: rgba(0, 212, 255, 0.1); }',
+        '  50% { background: rgba(0, 212, 255, 0.25); }',
+        '}',
+        '.source-cite:hover { animation: citation-highlight 1s ease-in-out infinite; cursor: pointer; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Find step 5 (human checkpoint) and make it pulse
+    var steps = document.querySelectorAll('.step, .pipeline-step');
+    steps.forEach(function(step) {
+        if (step.textContent.indexOf('REVIEW') >= 0 || step.textContent.indexOf('Human') >= 0) {
+            step.classList.add('step-waiting');
+        }
+    });
+
+    // Increment the waiting time counter
+    var waitingEls = document.querySelectorAll('*');
+    waitingEls.forEach(function(el) {
+        if (el.textContent.trim() === '4 min' || el.textContent.trim() === 'Waiting: 4 min') {
+            var minutes = 4;
+            setInterval(function() {
+                minutes++;
+                if (minutes > 12) minutes = 4;
+                el.textContent = el.textContent.replace(/\d+ min/, minutes + ' min');
+            }, 15000);
+        }
+    });
+})();
+</script>
+</body>
+</html>

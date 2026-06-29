@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Audit & Lineage Explorer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; }
+        .top-nav { height: 48px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 16px; gap: 16px; }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: white; }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .separator { color: var(--text-muted); }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .layout { display: flex; height: calc(100vh - 48px); }
+        .sidebar { width: 52px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+        .sidebar-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .sidebar-spacer { flex: 1; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .lineage-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Lineage Tree (center) */
+        .lineage-tree {
+            flex: 1;
+            padding: 32px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .lineage-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 24px;
+        }
+
+        /* Nodes */
+        .lineage-node {
+            width: 500px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            border: 1px solid;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .lineage-node::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            width: 2px;
+            height: 12px;
+            background: var(--border-accent);
+        }
+
+        .lineage-node:last-child::after { display: none; }
+
+        .lineage-node.output {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .lineage-node.model {
+            border-color: var(--accent-purple);
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .lineage-node.dataset {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .lineage-node.source {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .node-type-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .node-type-badge.output { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+        .node-type-badge.model { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
+        .node-type-badge.dataset { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .node-type-badge.source { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+
+        .node-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .node-body {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .node-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .node-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .node-meta-item .meta-label { color: var(--text-muted); }
+        .node-meta-item .meta-value { color: var(--text-secondary); font-weight: 500; }
+
+        /* Arrow connector */
+        .lineage-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px 0;
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        /* Branch to multiple sources */
+        .lineage-branch {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .lineage-branch .lineage-node {
+            flex: 1;
+            width: auto;
+            margin-bottom: 0;
+        }
+
+        .lineage-branch .lineage-node::after { display: none; }
+
+        .branch-connector {
+            width: 500px;
+            height: 30px;
+            position: relative;
+            margin: 4px auto;
+        }
+
+        .branch-connector::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 10px;
+            background: var(--border-accent);
+        }
+
+        .branch-connector::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 15%;
+            width: 70%;
+            height: 2px;
+            background: var(--border-accent);
+        }
+
+        .branch-legs {
+            position: absolute;
+            top: 10px;
+            left: 15%;
+            width: 70%;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .branch-leg {
+            width: 2px;
+            height: 18px;
+            background: var(--border-accent);
+        }
+
+        /* Right panel: Details */
+        .detail-panel {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .detail-panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-panel-title {
+            font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;
+        }
+
+        .detail-panel-subtitle {
+            font-size: 11px; color: var(--text-muted);
+        }
+
+        .detail-group {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-group-title {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        .detail-kv {
+            display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px;
+        }
+
+        .detail-kv .k { color: var(--text-secondary); }
+        .detail-kv .v { color: var(--text-primary); font-weight: 500; text-align: right; max-width: 60%; }
+
+        .integrity-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 500;
+        }
+
+        .integrity-badge.verified { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .integrity-badge.tamper-proof { background: rgba(0,212,255,0.1); color: var(--accent-cyan); }
+
+        .hash-value {
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 6px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo"><div class="logo-icon">OIF</div><span>Apex Platform</span></div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span><span class="separator">/</span>
+            <span>Audit & Lineage</span><span class="separator">/</span>
+            <span class="active">Trace: "CARDINAL-7 movement tempo +40%"</span>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-icon">&#x25A3;</div>
+            <div class="sidebar-icon">&#x1F5FA;</div>
+            <div class="sidebar-icon">&#x1F4CA;</div>
+            <div class="sidebar-icon">&#x25CB;</div>
+            <div class="sidebar-icon">&#x1F50D;</div>
+            <div class="sidebar-icon">&#x26A1;</div>
+            <div class="sidebar-icon">&#x1F465;</div>
+            <div class="sidebar-spacer"></div>
+            <div class="sidebar-icon active">&#x1F512;</div>
+        </aside>
+
+        <main class="main-content">
+            <div class="lineage-container">
+                <div class="lineage-tree">
+                    <div class="lineage-title">Lineage Trace: Briefing Assertion to Raw Sources</div>
+
+                    <!-- Level 1: Output -->
+                    <div class="lineage-node output">
+                        <div class="node-header">
+                            <span class="node-type-badge output">Briefing Output</span>
+                            <span class="node-title">CENTCOM Daily SITREP, Section 2, Paragraph 1</span>
+                        </div>
+                        <div class="node-body">
+                            "Entity CARDINAL-7 has increased movement tempo by approximately 40% over the past 7 days compared to its 90-day baseline pattern of life."
+                        </div>
+                        <div class="node-meta">
+                            <span class="node-meta-item"><span class="meta-label">Published:</span><span class="meta-value">0445Z 26 Jun 2026</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Author:</span><span class="meta-value">Agent Script (reviewed by SSgt Rivera)</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Classification:</span><span class="meta-value">UNCLASSIFIED</span></span>
+                        </div>
+                    </div>
+
+                    <div class="lineage-arrow">&#x25BC;</div>
+
+                    <!-- Level 2: Model -->
+                    <div class="lineage-node model">
+                        <div class="node-header">
+                            <span class="node-type-badge model">Analytical Model</span>
+                            <span class="node-title">Trend Detection v2.3</span>
+                        </div>
+                        <div class="node-body">
+                            Change-point detection applied to entity movement frequency time series. Computed 42.3% increase in movement events over trailing 7-day window against 90-day rolling baseline. Two-sigma threshold exceeded at day 5.
+                        </div>
+                        <div class="node-meta">
+                            <span class="node-meta-item"><span class="meta-label">Model Version:</span><span class="meta-value">v2.3.1-prod</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Confidence:</span><span class="meta-value">0.87</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Parameters:</span><span class="meta-value">window=7d, baseline=90d, threshold=2σ</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Executed:</span><span class="meta-value">0415:38Z via Morning Roll-Up script</span></span>
+                        </div>
+                    </div>
+
+                    <div class="lineage-arrow">&#x25BC;</div>
+
+                    <!-- Level 3: Certified Dataset -->
+                    <div class="lineage-node dataset">
+                        <div class="node-header">
+                            <span class="node-type-badge dataset">Certified Dataset</span>
+                            <span class="node-title">CENTCOM-Movement-2026-0626 (version 3)</span>
+                        </div>
+                        <div class="node-body">
+                            Curated movement data for all tracked entities in CENTCOM AOR. Certified at 0400Z 26 Jun 2026. Quality score: 94/100. Coverage: 342 entities, 89-day window.
+                        </div>
+                        <div class="node-meta">
+                            <span class="node-meta-item"><span class="meta-label">Version:</span><span class="meta-value">v3 (immutable)</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Certified by:</span><span class="meta-value">Auto-QA + SSgt Davis</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Records:</span><span class="meta-value">48,219</span></span>
+                            <span class="node-meta-item"><span class="meta-label">Quality Score:</span><span class="meta-value">94/100</span></span>
+                        </div>
+                    </div>
+
+                    <div class="lineage-arrow">&#x25BC;</div>
+
+                    <!-- Level 4: Raw Sources (branched) -->
+                    <div class="branch-connector">
+                        <div class="branch-legs">
+                            <div class="branch-leg"></div>
+                            <div class="branch-leg"></div>
+                            <div class="branch-leg"></div>
+                        </div>
+                    </div>
+
+                    <div class="lineage-branch">
+                        <div class="lineage-node source">
+                            <div class="node-header">
+                                <span class="node-type-badge source">Raw Source</span>
+                            </div>
+                            <div class="node-title" style="font-size: 12px; margin-bottom: 6px;">Sensor Feed: ISR Platform Delta</div>
+                            <div class="node-body">
+                                142 position reports for CARDINAL-7 (Track 4417) over 30-day period. Continuous coverage during active windows.
+                            </div>
+                            <div class="node-meta">
+                                <span class="node-meta-item"><span class="meta-label">Records:</span><span class="meta-value">142</span></span>
+                                <span class="node-meta-item"><span class="meta-label">Freshness:</span><span class="meta-value">Live</span></span>
+                            </div>
+                        </div>
+
+                        <div class="lineage-node source">
+                            <div class="node-header">
+                                <span class="node-type-badge source">Raw Source</span>
+                            </div>
+                            <div class="node-title" style="font-size: 12px; margin-bottom: 6px;">Operational Reports</div>
+                            <div class="node-body">
+                                7 SITREP and INTSUM references to CARDINAL-7 movement activity over 30-day period.
+                            </div>
+                            <div class="node-meta">
+                                <span class="node-meta-item"><span class="meta-label">Records:</span><span class="meta-value">7</span></span>
+                                <span class="node-meta-item"><span class="meta-label">Freshness:</span><span class="meta-value">Recent</span></span>
+                            </div>
+                        </div>
+
+                        <div class="lineage-node source">
+                            <div class="node-header">
+                                <span class="node-type-badge source">Raw Source</span>
+                            </div>
+                            <div class="node-title" style="font-size: 12px; margin-bottom: 6px;">Historical Baseline Model</div>
+                            <div class="node-body">
+                                18-month pattern-of-life model for CARDINAL-7. Establishes expected movement frequency, routes, and timing.
+                            </div>
+                            <div class="node-meta">
+                                <span class="node-meta-item"><span class="meta-label">Baseline:</span><span class="meta-value">18 months</span></span>
+                                <span class="node-meta-item"><span class="meta-label">Last calibrated:</span><span class="meta-value">20 Jun 2026</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Details -->
+                <div class="detail-panel">
+                    <div class="detail-panel-header">
+                        <div class="detail-panel-title">Trace Details</div>
+                        <div class="detail-panel-subtitle">Full audit record for this assertion</div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Integrity Verification</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                            <span class="integrity-badge verified">&#x2713; Chain Verified</span>
+                            <span class="integrity-badge tamper-proof">&#x1F512; Tamper-Proof</span>
+                        </div>
+                        <div class="detail-kv"><span class="k">Lineage hash</span></div>
+                        <div class="hash-value">sha256:a4f2c8e1...b7d903f2</div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Assertion Details</div>
+                        <div class="detail-kv"><span class="k">Claim</span><span class="v">"Movement tempo +40%"</span></div>
+                        <div class="detail-kv"><span class="k">Actual computed value</span><span class="v">+42.3%</span></div>
+                        <div class="detail-kv"><span class="k">Rounded for briefing</span><span class="v">~40% (analyst choice)</span></div>
+                        <div class="detail-kv"><span class="k">Confidence</span><span class="v">0.87 (HIGH)</span></div>
+                        <div class="detail-kv"><span class="k">Threshold exceeded</span><span class="v">Yes (2σ at day 5)</span></div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Processing Chain</div>
+                        <div class="detail-kv"><span class="k">Triggered by</span><span class="v">Schedule (0415Z daily)</span></div>
+                        <div class="detail-kv"><span class="k">Agent Script</span><span class="v">Morning Roll-Up v3.2</span></div>
+                        <div class="detail-kv"><span class="k">Pipeline step</span><span class="v">3/6 (ANALYZE)</span></div>
+                        <div class="detail-kv"><span class="k">Model invoked</span><span class="v">TrendDetect v2.3.1</span></div>
+                        <div class="detail-kv"><span class="k">Execution time</span><span class="v">1.8s</span></div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Human Actions</div>
+                        <div class="detail-kv"><span class="k">Generated by</span><span class="v">Apex LLM Summarize v3</span></div>
+                        <div class="detail-kv"><span class="k">Reviewed by</span><span class="v">SSgt Rivera, J.</span></div>
+                        <div class="detail-kv"><span class="k">Review action</span><span class="v">Approved (no edits)</span></div>
+                        <div class="detail-kv"><span class="k">Review timestamp</span><span class="v">0438Z 26 Jun 2026</span></div>
+                        <div class="detail-kv"><span class="k">Published</span><span class="v">0445Z 26 Jun 2026</span></div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Data Freshness at Time of Analysis</div>
+                        <div class="detail-kv"><span class="k">Sensor data</span><span class="v" style="color: var(--accent-green);">Live (< 1 min)</span></div>
+                        <div class="detail-kv"><span class="k">Op Reports</span><span class="v" style="color: var(--accent-blue);">Recent (2h)</span></div>
+                        <div class="detail-kv"><span class="k">Baseline model</span><span class="v">Calibrated 6 days prior</span></div>
+                    </div>
+
+                    <div class="detail-group">
+                        <div class="detail-group-title">Reproducibility</div>
+                        <div class="detail-kv"><span class="k">Dataset version</span><span class="v">v3 (frozen)</span></div>
+                        <div class="detail-kv"><span class="k">Model version</span><span class="v">v2.3.1 (frozen)</span></div>
+                        <div class="detail-kv"><span class="k">Reproducible</span><span class="v" style="color: var(--accent-green);">Yes (deterministic)</span></div>
+                        <div class="detail-kv"><span class="k">Re-run available</span><span class="v">Click to re-execute</span></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes chain-verified {',
+        '  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.3); }',
+        '  50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }',
+        '}',
+        '@keyframes trace-flow {',
+        '  0% { opacity: 0.4; }',
+        '  50% { opacity: 1; }',
+        '  100% { opacity: 0.4; }',
+        '}',
+        '.verified-badge, .chain-badge { animation: chain-verified 2.5s ease-in-out infinite; }',
+        '.lineage-connector { animation: trace-flow 2s ease-in-out infinite; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Find verification badges and animate them
+    var badges = document.querySelectorAll('[class*="verified"], [class*="badge"]');
+    badges.forEach(function(el) {
+        if (el.textContent.indexOf('Verified') >= 0 || el.textContent.indexOf('Tamper') >= 0) {
+            el.classList.add('verified-badge');
+        }
+    });
+})();
+</script>
+</body>
+</html>

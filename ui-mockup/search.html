@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Unified Search</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-teal: #14b8a6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-logo .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: white;
+        }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 24px;
+        }
+        .nav-breadcrumb .separator { color: var(--text-muted); }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .layout { display: flex; height: calc(100vh - 48px); }
+        .sidebar {
+            width: 52px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 4px;
+        }
+        .sidebar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .sidebar-icon.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+        .sidebar-spacer { flex: 1; }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Search-specific styles */
+        .search-container {
+            padding: 32px 48px;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .search-header {
+            margin-bottom: 24px;
+        }
+
+        .search-bar-large {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 10px;
+            padding: 14px 20px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .search-bar-large .icon {
+            font-size: 20px;
+            color: var(--accent-cyan);
+        }
+
+        .search-bar-large input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .search-bar-large input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-bar-large .filters-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .search-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding: 0 4px;
+        }
+
+        .search-meta .result-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .search-meta .result-count strong {
+            color: var(--text-primary);
+        }
+
+        .search-meta .sort-by {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .search-filters {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 5px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-accent);
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+
+        .filter-chip:hover {
+            border-color: var(--accent-cyan);
+            color: var(--text-primary);
+        }
+
+        .filter-chip.active {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        /* Result groups */
+        .result-group {
+            margin-top: 24px;
+        }
+
+        .result-group-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-group-header .group-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .result-group-header .group-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .result-group-header .group-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .result-group-header .freshness {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .freshness.live {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        .freshness.recent {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .freshness.aging {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .result-item {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .result-item:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-accent);
+        }
+
+        .result-item .result-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .result-item .result-title .highlight {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent-cyan);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .result-item .result-snippet {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+
+        .result-item .result-footer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .result-item .result-footer .source-tag {
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .result-item .result-footer .confidence {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .conf-bar {
+            width: 40px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--bg-secondary);
+            overflow: hidden;
+        }
+
+        .conf-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .result-action {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            cursor: pointer;
+        }
+
+        .result-action:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span class="separator">/</span>
+            <span class="active">Unified Search</span>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-icon" title="Workspace">&#x25A3;</div>
+            <div class="sidebar-icon" title="Map">&#x1F5FA;</div>
+            <div class="sidebar-icon" title="Timeline">&#x1F4CA;</div>
+            <div class="sidebar-icon" title="Entities">&#x25CB;</div>
+            <div class="sidebar-icon active" title="Search">&#x1F50D;</div>
+            <div class="sidebar-icon" title="Agent Scripts">&#x26A1;</div>
+            <div class="sidebar-icon" title="Collaboration">&#x1F465;</div>
+            <div class="sidebar-spacer"></div>
+            <div class="sidebar-icon" title="Audit">&#x1F512;</div>
+        </aside>
+
+        <main class="main-content">
+            <div class="search-container">
+                <div class="search-header">
+                    <div class="search-bar-large">
+                        <span class="icon">&#x1F50D;</span>
+                        <input type="text" value="entity movements near grid 38TLM last 72 hours">
+                        <span class="filters-btn">+ Filters</span>
+                    </div>
+
+                    <div class="search-meta">
+                        <span class="result-count"><strong>47 results</strong> across 4 sources in 1.2s</span>
+                        <span class="sort-by">Sort: Relevance | Time | Source</span>
+                    </div>
+
+                    <div class="search-filters">
+                        <span class="filter-chip active">All Sources</span>
+                        <span class="filter-chip">Sensor Feeds (23)</span>
+                        <span class="filter-chip">Op Reports (12)</span>
+                        <span class="filter-chip">Geospatial (8)</span>
+                        <span class="filter-chip">Message Traffic (4)</span>
+                        <span class="filter-chip">Last 24h</span>
+                        <span class="filter-chip">Last 72h</span>
+                        <span class="filter-chip">High Confidence Only</span>
+                    </div>
+                </div>
+
+                <!-- Sensor Feeds Results -->
+                <div class="result-group">
+                    <div class="result-group-header">
+                        <div class="group-icon" style="background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan);">&#x1F4E1;</div>
+                        <span class="group-title">Sensor Feeds</span>
+                        <span class="freshness live">&#x25CF; Live</span>
+                        <span class="group-count">23 results</span>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">Track 4417: <span class="highlight">Movement</span> detected bearing 347 at <span class="highlight">grid 38TLM</span> 4219</div>
+                        <div class="result-snippet">Velocity 45 km/h, heading north-northwest. Track first acquired 0312Z, continuous coverage. Entity correlates with CARDINAL-7 (confidence 0.94). Deviation from established route pattern identified at 0342Z.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">ISR Platform Delta</span>
+                            <span>0342Z 26 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 94%; background: var(--accent-green)"></span></span>
+                                0.94
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">View on Map</span>
+                            <span class="result-action">Show Track History</span>
+                            <span class="result-action">Correlate Entity</span>
+                        </div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">Track 4418: Stationary signature at <span class="highlight">grid 38TLM</span> 3815 since 2200Z</div>
+                        <div class="result-snippet">Vehicle-sized return, stationary for 7+ hours. Within 2km of Track 4417 last-known position at 2145Z. Possible staging or rest point. No associated comms detected.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">ISR Platform Delta</span>
+                            <span>0355Z 26 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 88%; background: var(--accent-green)"></span></span>
+                                0.88
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">View on Map</span>
+                            <span class="result-action">Pattern of Life</span>
+                        </div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">Track 4423: New acquisition, <span class="highlight">movement</span> southwest of <span class="highlight">38TLM</span></div>
+                        <div class="result-snippet">Small convoy signature (3-4 vehicles), first detected 0410Z. Heading southeast at approximately 60 km/h. No prior track history. Uncorelated entity.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">ISR Platform Echo</span>
+                            <span>0412Z 26 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 72%; background: var(--accent-yellow)"></span></span>
+                                0.72
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">View on Map</span>
+                            <span class="result-action">Attempt Correlation</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operational Reports -->
+                <div class="result-group">
+                    <div class="result-group-header">
+                        <div class="group-icon" style="background: rgba(59, 130, 246, 0.15); color: var(--accent-blue);">&#x1F4C4;</div>
+                        <span class="group-title">Operational Reports</span>
+                        <span class="freshness recent">&#x25CF; Recent (2h)</span>
+                        <span class="group-count">12 results</span>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">SITREP 2026-0626-0400: Patrol activity summary, <span class="highlight">Grid 38TLM</span> vicinity</div>
+                        <div class="result-snippet">Friendly patrol (call sign DAGGER-6) reported visual contact with unknown vehicle <span class="highlight">movement</span> at approximately 0330Z. Direction of travel north. Unable to identify or interdict due to distance. Reported to TOC.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">CENTCOM J3 Daily Log</span>
+                            <span>0415Z 26 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 90%; background: var(--accent-green)"></span></span>
+                                N/A (human report)
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">Read Full Report</span>
+                            <span class="result-action">Correlate with Tracks</span>
+                            <span class="result-action">Add to Workspace</span>
+                        </div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">INTSUM 2026-0625: Entity CARDINAL activity assessment, includes <span class="highlight">38TLM</span> reference</div>
+                        <div class="result-snippet">Weekly pattern assessment for CARDINAL network entities. Notes increasing frequency of <span class="highlight">movement</span> along Route AMBER corridor. Recommends enhanced ISR coverage for grid squares 38TLM and 38TLN.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">CENTCOM J2 INTSUM</span>
+                            <span>1800Z 25 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 85%; background: var(--accent-green)"></span></span>
+                                Analyst assessed
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">Read Full Report</span>
+                            <span class="result-action">View Entity Network</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Geospatial -->
+                <div class="result-group">
+                    <div class="result-group-header">
+                        <div class="group-icon" style="background: rgba(20, 184, 166, 0.15); color: var(--accent-teal);">&#x1F30D;</div>
+                        <span class="group-title">Geospatial</span>
+                        <span class="freshness recent">&#x25CF; Recent (4h)</span>
+                        <span class="group-count">8 results</span>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">Imagery pass 0600Z: New vehicle signatures identified at <span class="highlight">grid 38TLM</span> 3900</div>
+                        <div class="result-snippet">Commercial satellite pass identified 6 vehicle-sized signatures at previously unoccupied compound. Comparison with imagery from 23 Jun shows site was empty. Possible temporary assembly point.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">Commercial Satellite (Vendor B)</span>
+                            <span>0600Z 25 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 80%; background: var(--accent-green)"></span></span>
+                                0.80
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">View Imagery</span>
+                            <span class="result-action">Compare (Before/After)</span>
+                            <span class="result-action">Plot on Map</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Traffic -->
+                <div class="result-group">
+                    <div class="result-group-header">
+                        <div class="group-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow);">&#x1F4E8;</div>
+                        <span class="group-title">Message Traffic</span>
+                        <span class="freshness aging">&#x25CF; Aging (7h)</span>
+                        <span class="group-count">4 results</span>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-title">Cable CENTCOM-2026-4491: References <span class="highlight">grid 38TLM</span>, possible logistics activity</div>
+                        <div class="result-snippet">Liaison reporting indicates local sources observed increased vehicle <span class="highlight">movement</span> in area over past 3 days. Cannot confirm affiliation. Characterized as "unusual but not unprecedented" for time of year.</div>
+                        <div class="result-footer">
+                            <span class="source-tag">HUMINT Reporting</span>
+                            <span>2130Z 25 Jun 2026</span>
+                            <span class="confidence">
+                                Confidence:
+                                <span class="conf-bar"><span class="conf-bar-fill" style="width: 55%; background: var(--accent-yellow)"></span></span>
+                                0.55 (single source)
+                            </span>
+                        </div>
+                        <div class="result-actions">
+                            <span class="result-action">Read Full Cable</span>
+                            <span class="result-action">Source History</span>
+                            <span class="result-action">Corroborate</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
+// Search screen animations for demo
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes result-load {',
+        '  from { opacity: 0; transform: translateY(6px); }',
+        '  to { opacity: 1; transform: translateY(0); }',
+        '}',
+        '.result-card { animation: result-load 0.3s ease-out; }',
+        '@keyframes freshness-pulse {',
+        '  0%, 100% { opacity: 1; }',
+        '  50% { opacity: 0.6; }',
+        '}',
+        '.freshness-live { animation: freshness-pulse 2s ease-in-out infinite; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Find and animate "Live" freshness indicators
+    var badges = document.querySelectorAll('.source-freshness, .freshness');
+    badges.forEach(function(badge) {
+        if (badge.textContent.trim().toLowerCase().indexOf('live') >= 0) {
+            badge.classList.add('freshness-pulse');
+        }
+    });
+})();
+</script>
+</body>
+</html>

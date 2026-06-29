@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Operational Insight Fusion | Apex Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Header */
+        .app-header {
+            height: 52px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+
+        .header-logo .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-logo .logo-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+        }
+
+        .header-logo .logo-subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border-color);
+            margin: 0 8px;
+        }
+
+        .header-context {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-context .env-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--accent-green);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .header-status .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .user-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Main Layout */
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left Navigation */
+        .left-nav {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            padding: 16px 12px 8px;
+        }
+
+        .nav-section-title {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 450;
+            margin-bottom: 2px;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+        }
+
+        .nav-item .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .nav-item .nav-label {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item .nav-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            font-weight: 600;
+        }
+
+        .nav-spacer {
+            flex: 1;
+        }
+
+        .nav-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .nav-footer-info {
+            font-size: 10px;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            line-height: 1.6;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="header-logo">
+            <div class="logo-icon">OIF</div>
+            <div class="logo-text">
+                <span class="logo-title">Operational Insight Fusion</span>
+                <span class="logo-subtitle">APEX AI PLATFORM</span>
+            </div>
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-context">
+            <span class="env-badge">PROTOTYPE</span>
+            <span>CENTCOM AOR &mdash; Situation Workspace</span>
+        </div>
+        <div class="header-right">
+            <div class="header-status">
+                <span class="dot"></span>
+                <span>All Systems Operational</span>
+            </div>
+            <div class="user-avatar">JR</div>
+        </div>
+    </header>
+
+    <!-- Body: Nav + Content -->
+    <div class="app-body">
+        <!-- Left Navigation -->
+        <nav class="left-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Operational Views</div>
+                <a class="nav-item active" data-page="../ui-mockup/index.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x25A3;</span>
+                    <span class="nav-label">Situation Workspace</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/search.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F50D;</span>
+                    <span class="nav-label">Unified Search</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/event-timeline.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F4CA;</span>
+                    <span class="nav-label">Event Timeline</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/geospatial.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F5FA;</span>
+                    <span class="nav-label">Geospatial View</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Analysis & AI</div>
+                <a class="nav-item" data-page="../ui-mockup/anomaly-investigation.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x26A0;</span>
+                    <span class="nav-label">Anomaly Investigation</span>
+                    <span class="nav-badge">7</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/conversational-ai.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F4AC;</span>
+                    <span class="nav-label">AI Analyst</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/agent-script.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x26A1;</span>
+                    <span class="nav-label">Agent Scripts</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Collaboration & Governance</div>
+                <a class="nav-item" data-page="../ui-mockup/collaboration.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F465;</span>
+                    <span class="nav-label">Collaborative Briefing</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/alerting.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F514;</span>
+                    <span class="nav-label">Alert Management</span>
+                    <span class="nav-badge">3</span>
+                </a>
+                <a class="nav-item" data-page="../ui-mockup/audit-lineage.html" onclick="navigate(this, event)">
+                    <span class="nav-icon">&#x1F512;</span>
+                    <span class="nav-label">Audit & Lineage</span>
+                </a>
+            </div>
+
+            <div class="nav-spacer"></div>
+
+            <div class="nav-footer">
+                <div class="nav-footer-info">
+                    Certified Dataset v2026-0626.3<br>
+                    Active Feeds: 47 / 52<br>
+                    Classification: UNCLASSIFIED // DEMO
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <iframe class="content-frame" id="content-frame" src="../ui-mockup/index.html"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const frame = document.getElementById('content-frame');
+
+        function injectFrameStyles() {
+            try {
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                if (!doc) return;
+                const style = doc.createElement('style');
+                style.textContent = `
+                    .top-nav { display: none !important; }
+                    .sidebar { display: none !important; }
+                    .layout { height: 100vh !important; }
+                    body { overflow: auto !important; }
+                `;
+                doc.head.appendChild(style);
+            } catch (e) {}
+        }
+
+        frame.addEventListener('load', injectFrameStyles);
+
+        function navigate(element, event) {
+            event.preventDefault();
+            const page = element.getAttribute('data-page');
+            frame.src = page;
+
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+
+            const label = element.querySelector('.nav-label').textContent;
+            document.querySelector('.header-context span:last-child').innerHTML =
+                'CENTCOM AOR &mdash; ' + label;
+        }
+
+        document.addEventListener('keydown', function(e) {
+            const items = Array.from(document.querySelectorAll('.nav-item'));
+            const activeIndex = items.findIndex(item => item.classList.contains('active'));
+
+            if (e.key === 'ArrowDown' && activeIndex < items.length - 1) {
+                e.preventDefault();
+                items[activeIndex + 1].click();
+            } else if (e.key === 'ArrowUp' && activeIndex > 0) {
+                e.preventDefault();
+                items[activeIndex - 1].click();
+            }
+        });
+    </script>
+</body>
+</html>

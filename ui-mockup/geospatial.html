@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Geospatial View | Apex Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --border-color: #1e2a42;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: white;
+        }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .sidebar {
+            position: fixed; left: 0; top: 48px; width: 48px; height: calc(100vh - 48px);
+            background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; padding-top: 16px; gap: 8px;
+        }
+        .sidebar-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; font-size: 16px;
+        }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .main-content {
+            margin-left: 48px;
+            height: calc(100vh - 48px);
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            grid-template-rows: auto 1fr auto;
+        }
+        .map-toolbar {
+            grid-column: 1 / -1;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .toolbar-group { display: flex; gap: 6px; align-items: center; }
+        .toolbar-group label { font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+        .tool-btn {
+            padding: 5px 10px; border-radius: 5px; font-size: 11px;
+            border: 1px solid var(--border-color); background: var(--bg-card);
+            color: var(--text-secondary); cursor: pointer;
+        }
+        .tool-btn.active { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,212,255,0.08); }
+        .tool-btn.red { border-color: var(--accent-red); color: var(--accent-red); background: rgba(239,68,68,0.08); }
+        .map-area {
+            position: relative;
+            background: #0a1628;
+            overflow: hidden;
+        }
+        /* Simulated map with CSS gradients */
+        .map-surface {
+            width: 100%; height: 100%;
+            background:
+                radial-gradient(ellipse 200px 200px at 35% 45%, rgba(0, 212, 255, 0.12) 0%, transparent 70%),
+                radial-gradient(ellipse 150px 150px at 55% 35%, rgba(0, 212, 255, 0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 120px 100px at 70% 60%, rgba(239, 68, 68, 0.15) 0%, transparent 70%),
+                linear-gradient(180deg, #0a1628 0%, #0d1a30 100%);
+        }
+        .map-grid-line {
+            position: absolute;
+            background: rgba(30, 42, 66, 0.4);
+        }
+        .map-grid-line.h { width: 100%; height: 1px; }
+        .map-grid-line.v { width: 1px; height: 100%; }
+        .heat-overlay {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(30px);
+        }
+        .entity-track {
+            position: absolute;
+            border: none;
+            border-top: 2px dashed;
+            transform-origin: left center;
+        }
+        .entity-marker {
+            position: absolute;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px solid;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .entity-marker:hover { transform: scale(1.5); }
+        .entity-marker.pulsing::after {
+            content: '';
+            position: absolute;
+            top: -4px; left: -4px; right: -4px; bottom: -4px;
+            border-radius: 50%;
+            border: 2px solid;
+            animation: pulse 1.5s infinite;
+            opacity: 0.6;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .entity-marker.red { background: var(--accent-red); border-color: var(--accent-red); }
+        .entity-marker.red::after { border-color: var(--accent-red); }
+        .entity-marker.cyan { background: var(--accent-cyan); border-color: var(--accent-cyan); }
+        .entity-marker.yellow { background: var(--accent-yellow); border-color: var(--accent-yellow); }
+        .entity-marker.green { background: var(--accent-green); border-color: var(--accent-green); }
+        .entity-marker.purple { background: var(--accent-purple); border-color: var(--accent-purple); }
+        .marker-label {
+            position: absolute;
+            top: -20px; left: 50%; transform: translateX(-50%);
+            font-size: 9px; font-weight: 600;
+            white-space: nowrap;
+            padding: 2px 6px; border-radius: 3px;
+            background: rgba(0,0,0,0.7);
+        }
+        .threat-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px dashed rgba(239, 68, 68, 0.4);
+        }
+        .route-line {
+            position: absolute;
+            height: 3px;
+            border-radius: 1.5px;
+            transform-origin: left center;
+        }
+        .map-legend {
+            position: absolute;
+            bottom: 16px; left: 16px;
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 10px;
+        }
+        .map-legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: var(--text-secondary); }
+        .map-legend-item:last-child { margin-bottom: 0; }
+        .map-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .map-legend-line { width: 16px; height: 3px; border-radius: 1px; }
+        .map-coords {
+            position: absolute;
+            bottom: 16px; right: 16px;
+            font-size: 10px; color: var(--text-muted);
+            font-family: monospace;
+            background: rgba(17,24,39,0.9);
+            padding: 4px 8px; border-radius: 4px;
+        }
+        .right-panel {
+            border-left: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .panel-section { margin-bottom: 16px; }
+        .panel-section h3 { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .layer-toggle {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+            font-size: 12px; color: var(--text-secondary);
+        }
+        .toggle-switch {
+            width: 28px; height: 14px; border-radius: 7px;
+            background: var(--border-color); position: relative; cursor: pointer;
+        }
+        .toggle-switch.on { background: var(--accent-cyan); }
+        .toggle-switch::after {
+            content: ''; position: absolute;
+            width: 10px; height: 10px; border-radius: 50%;
+            top: 2px; left: 2px; background: white;
+            transition: left 0.2s;
+        }
+        .toggle-switch.on::after { left: 16px; }
+        .entity-list-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px; border-radius: 6px; margin-bottom: 6px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            font-size: 11px; cursor: pointer;
+        }
+        .entity-list-item:hover { border-color: var(--accent-cyan); }
+        .entity-color { width: 8px; height: 8px; border-radius: 50%; }
+        .entity-info { flex: 1; }
+        .entity-info .name { font-weight: 600; color: var(--text-primary); }
+        .entity-info .detail { color: var(--text-muted); font-size: 10px; }
+        .entity-score { font-weight: 600; font-size: 11px; }
+        .time-slider {
+            grid-column: 1 / -1;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .slider-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+        .slider-track {
+            flex: 1; height: 6px; background: var(--border-color);
+            border-radius: 3px; position: relative;
+        }
+        .slider-fill { position: absolute; left: 0; top: 0; height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); border-radius: 3px; }
+        .slider-thumb {
+            position: absolute; top: -5px; left: 100%;
+            width: 16px; height: 16px; background: var(--accent-cyan);
+            border-radius: 50%; border: 2px solid white; cursor: pointer;
+            transform: translateX(-50%);
+        }
+        .slider-markers {
+            position: absolute; top: 12px; left: 0; right: 0;
+            display: flex; justify-content: space-between;
+            font-size: 9px; color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span style="color: var(--text-muted)">/</span>
+            <span class="active">Geospatial View</span>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-icon active">&#9632;</div>
+        <div class="sidebar-icon">&#9881;</div>
+        <div class="sidebar-icon">&#8942;</div>
+        <div class="sidebar-icon">&#9675;</div>
+        <div class="sidebar-icon">&#128269;</div>
+        <div class="sidebar-icon">&#9889;</div>
+        <div class="sidebar-icon">&#128101;</div>
+    </aside>
+
+    <main class="main-content">
+        <div class="map-toolbar">
+            <div class="toolbar-group">
+                <label>Layers:</label>
+                <div class="tool-btn active">Heat Map</div>
+                <div class="tool-btn active">Tracks</div>
+                <div class="tool-btn active">Anomalies</div>
+                <div class="tool-btn">Order of Battle</div>
+                <div class="tool-btn">Supply Routes</div>
+                <div class="tool-btn">Phase Lines</div>
+            </div>
+            <div style="margin-left: auto;"></div>
+            <div class="toolbar-group">
+                <div class="tool-btn">Measure</div>
+                <div class="tool-btn">Draw</div>
+                <div class="tool-btn red">&#9888; 3 Anomalies</div>
+            </div>
+        </div>
+
+        <div class="map-area">
+            <div class="map-surface">
+                <!-- Grid lines -->
+                <div class="map-grid-line h" style="top: 20%"></div>
+                <div class="map-grid-line h" style="top: 40%"></div>
+                <div class="map-grid-line h" style="top: 60%"></div>
+                <div class="map-grid-line h" style="top: 80%"></div>
+                <div class="map-grid-line v" style="left: 20%"></div>
+                <div class="map-grid-line v" style="left: 40%"></div>
+                <div class="map-grid-line v" style="left: 60%"></div>
+                <div class="map-grid-line v" style="left: 80%"></div>
+
+                <!-- Heat overlays -->
+                <div class="heat-overlay" style="top: 30%; left: 25%; width: 180px; height: 160px; background: rgba(0, 212, 255, 0.15);"></div>
+                <div class="heat-overlay" style="top: 40%; left: 50%; width: 220px; height: 200px; background: rgba(0, 212, 255, 0.2);"></div>
+                <div class="heat-overlay" style="top: 25%; left: 60%; width: 140px; height: 130px; background: rgba(239, 68, 68, 0.2);"></div>
+
+                <!-- Route AMBER (established) -->
+                <div class="route-line" style="top: 52%; left: 15%; width: 55%; background: rgba(0,212,255,0.3); transform: rotate(-3deg);"></div>
+
+                <!-- Deviation path -->
+                <div class="route-line" style="top: 45%; left: 58%; width: 15%; background: rgba(239,68,68,0.6); transform: rotate(-30deg);"></div>
+
+                <!-- Threat ring -->
+                <div class="threat-ring" style="top: 18%; left: 58%; width: 120px; height: 120px;"></div>
+
+                <!-- Entity markers -->
+                <div class="entity-marker red pulsing" style="top: 28%; left: 66%;">
+                    <div class="marker-label" style="color: var(--accent-red);">CARDINAL-7</div>
+                </div>
+                <div class="entity-marker yellow" style="top: 55%; left: 42%;">
+                    <div class="marker-label" style="color: var(--accent-yellow);">WREN-12</div>
+                </div>
+                <div class="entity-marker green" style="top: 62%; left: 30%;">
+                    <div class="marker-label" style="color: var(--accent-green);">SPARROW-9</div>
+                </div>
+                <div class="entity-marker purple" style="top: 45%; left: 55%;">
+                    <div class="marker-label" style="color: var(--accent-purple);">FINCH-3</div>
+                </div>
+                <div class="entity-marker cyan" style="top: 70%; left: 65%;">
+                    <div class="marker-label" style="color: var(--accent-cyan);">HAWK-1</div>
+                </div>
+
+                <!-- Compound marker -->
+                <div style="position:absolute; top: 22%; left: 63%; width: 20px; height: 20px; border: 2px solid var(--accent-yellow); background: rgba(245,158,11,0.2); transform: rotate(45deg);"></div>
+                <div style="position:absolute; top: 15%; left: 62%; font-size: 9px; color: var(--accent-yellow);">Compound (6 new vehicles)</div>
+
+                <!-- Map legend -->
+                <div class="map-legend">
+                    <div class="map-legend-item"><div class="map-legend-dot" style="background: var(--accent-red);"></div>Anomaly / Critical</div>
+                    <div class="map-legend-item"><div class="map-legend-dot" style="background: var(--accent-cyan);"></div>Normal Track</div>
+                    <div class="map-legend-item"><div class="map-legend-dot" style="background: var(--accent-yellow);"></div>Watch List</div>
+                    <div class="map-legend-item"><div class="map-legend-line" style="background: var(--accent-cyan); opacity: 0.5;"></div>Route AMBER</div>
+                    <div class="map-legend-item"><div class="map-legend-line" style="background: var(--accent-red);"></div>Deviation Path</div>
+                    <div class="map-legend-item"><div style="width: 12px; height: 12px; border: 1px dashed var(--accent-red); border-radius: 50%;"></div>Threat Ring</div>
+                </div>
+                <div class="map-coords">38TLM 4219 | Zoom: 8 | WGS84</div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-section">
+                <h3>Map Layers</h3>
+                <div class="layer-toggle"><div class="toggle-switch on"></div>Activity Heat Map</div>
+                <div class="layer-toggle"><div class="toggle-switch on"></div>Entity Tracks (last 72h)</div>
+                <div class="layer-toggle"><div class="toggle-switch on"></div>Anomaly Overlays</div>
+                <div class="layer-toggle"><div class="toggle-switch"></div>Order of Battle</div>
+                <div class="layer-toggle"><div class="toggle-switch"></div>Supply Routes</div>
+                <div class="layer-toggle"><div class="toggle-switch"></div>Phase Lines</div>
+                <div class="layer-toggle"><div class="toggle-switch"></div>Terrain Contours</div>
+            </div>
+            <div class="panel-section">
+                <h3>Visible Entities (5)</h3>
+                <div class="entity-list-item">
+                    <div class="entity-color" style="background: var(--accent-red);"></div>
+                    <div class="entity-info"><div class="name">CARDINAL-7</div><div class="detail">Route deviation | 12.3km off pattern</div></div>
+                    <div class="entity-score" style="color: var(--accent-red);">0.94</div>
+                </div>
+                <div class="entity-list-item">
+                    <div class="entity-color" style="background: var(--accent-yellow);"></div>
+                    <div class="entity-info"><div class="name">WREN-12</div><div class="detail">Comms +270% vs baseline</div></div>
+                    <div class="entity-score" style="color: var(--accent-yellow);">0.81</div>
+                </div>
+                <div class="entity-list-item">
+                    <div class="entity-color" style="background: var(--accent-purple);"></div>
+                    <div class="entity-info"><div class="name">FINCH-3</div><div class="detail">New association link (3 sources)</div></div>
+                    <div class="entity-score" style="color: var(--accent-purple);">0.76</div>
+                </div>
+                <div class="entity-list-item">
+                    <div class="entity-color" style="background: var(--accent-green);"></div>
+                    <div class="entity-info"><div class="name">SPARROW-9</div><div class="detail">Pattern of life: normal</div></div>
+                    <div class="entity-score" style="color: var(--text-muted);">0.12</div>
+                </div>
+                <div class="entity-list-item">
+                    <div class="entity-color" style="background: var(--accent-cyan);"></div>
+                    <div class="entity-info"><div class="name">HAWK-1</div><div class="detail">Stationary 48h | Expected</div></div>
+                    <div class="entity-score" style="color: var(--text-muted);">0.08</div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h3>Heat Map Intensity</h3>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-muted);">
+                    <span>Low</span>
+                    <div style="flex: 1; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgba(0,212,255,0.1), rgba(0,212,255,0.5), rgba(239,68,68,0.7));"></div>
+                    <span>High</span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Based on 72h event density per 1km grid</div>
+            </div>
+        </div>
+
+        <div class="time-slider">
+            <div class="slider-label">Temporal Window:</div>
+            <div class="slider-track">
+                <div class="slider-fill"></div>
+                <div class="slider-thumb"></div>
+                <div class="slider-markers">
+                    <span>-72h</span>
+                    <span>-48h</span>
+                    <span>-24h</span>
+                    <span>NOW</span>
+                </div>
+            </div>
+            <div class="slider-label" style="color: var(--accent-cyan);">Live View</div>
+        </div>
+    </main>
+<script>
+// Animate entity markers and heat map for demo
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes marker-pulse {',
+        '  0%, 100% { box-shadow: 0 0 6px currentColor; }',
+        '  50% { box-shadow: 0 0 18px currentColor, 0 0 30px currentColor; }',
+        '}',
+        '.entity-marker.red { animation: marker-pulse 1.5s ease-in-out infinite; }',
+        '@keyframes heat-breathe {',
+        '  0%, 100% { opacity: 1; transform: scale(1); }',
+        '  50% { opacity: 0.7; transform: scale(1.05); }',
+        '}',
+        '.heat-overlay { animation: heat-breathe 4s ease-in-out infinite; }',
+        '@keyframes threat-spin {',
+        '  from { transform: rotate(0deg); }',
+        '  to { transform: rotate(360deg); }',
+        '}',
+        '.threat-ring { animation: threat-spin 30s linear infinite; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Slowly move CARDINAL-7 marker
+    var cardinal = document.querySelector('.entity-marker.red');
+    if (cardinal) {
+        var top = 28;
+        setInterval(function() {
+            top -= 0.02;
+            if (top < 25) top = 28;
+            cardinal.style.top = top + '%';
+        }, 200);
+    }
+})();
+</script>
+</body>
+</html>

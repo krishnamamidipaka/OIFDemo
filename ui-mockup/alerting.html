@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Alert Management | Apex Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --border-color: #1e2a42;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f97316;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 16px; gap: 16px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: white;
+        }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .sidebar {
+            position: fixed; left: 0; top: 48px; width: 48px; height: calc(100vh - 48px);
+            background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; padding-top: 16px; gap: 8px;
+        }
+        .sidebar-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; font-size: 16px;
+        }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .main-content {
+            margin-left: 48px; padding: 20px;
+            height: calc(100vh - 48px); overflow-y: auto;
+        }
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .page-header h1 { font-size: 18px; font-weight: 600; }
+        .header-stats { display: flex; gap: 16px; }
+        .stat-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 6px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            font-size: 11px;
+        }
+        .stat-badge .count { font-weight: 700; font-size: 14px; }
+        .stat-badge.critical .count { color: var(--accent-red); }
+        .stat-badge.warning .count { color: var(--accent-yellow); }
+        .stat-badge.info .count { color: var(--accent-cyan); }
+
+        .alert-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 16px;
+        }
+        .alert-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .alert-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 4px 1fr auto;
+            gap: 14px;
+            align-items: start;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .alert-card:hover { border-color: var(--accent-cyan); }
+        .alert-card.selected { border-color: var(--accent-cyan); background: rgba(0,212,255,0.03); }
+        .alert-severity {
+            width: 4px; height: 100%; border-radius: 2px; min-height: 60px;
+        }
+        .alert-severity.critical { background: var(--accent-red); }
+        .alert-severity.high { background: var(--accent-orange); }
+        .alert-severity.warning { background: var(--accent-yellow); }
+        .alert-severity.info { background: var(--accent-blue); }
+        .alert-body {}
+        .alert-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .alert-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+        .alert-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+        .alert-tag {
+            padding: 2px 7px; border-radius: 3px; font-size: 9px; font-weight: 600;
+            text-transform: uppercase;
+        }
+        .alert-tag.movement { background: rgba(0,212,255,0.12); color: var(--accent-cyan); }
+        .alert-tag.sigint { background: rgba(139,92,246,0.12); color: var(--accent-purple); }
+        .alert-tag.trend { background: rgba(245,158,11,0.12); color: var(--accent-yellow); }
+        .alert-tag.correlation { background: rgba(16,185,129,0.12); color: var(--accent-green); }
+        .alert-tag.health { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+        .alert-tag.workflow { background: rgba(139,92,246,0.12); color: var(--accent-purple); }
+        .alert-actions {
+            display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+        }
+        .alert-time { font-size: 10px; color: var(--text-muted); }
+        .alert-score {
+            font-size: 18px; font-weight: 700;
+        }
+        .delivery-badges { display: flex; gap: 4px; margin-top: 4px; }
+        .delivery-badge {
+            width: 20px; height: 20px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; background: var(--bg-primary); border: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+        .delivery-badge.active { border-color: var(--accent-green); color: var(--accent-green); }
+
+        /* Right panel: delivery config */
+        .config-panel {
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .config-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 14px;
+        }
+        .config-card h3 {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+        }
+        .delivery-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 0; border-bottom: 1px solid rgba(30,42,66,0.5);
+            font-size: 12px;
+        }
+        .delivery-row:last-child { border-bottom: none; }
+        .delivery-row .label { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .delivery-row .icon { font-size: 14px; }
+        .delivery-status { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+        .delivery-status.delivered { background: rgba(16,185,129,0.12); color: var(--accent-green); }
+        .delivery-status.pending { background: rgba(245,158,11,0.12); color: var(--accent-yellow); }
+        .delivery-status.queued { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+
+        .threshold-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        }
+        .threshold-item {
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 8px 10px;
+        }
+        .threshold-item .label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
+        .threshold-item .value { font-size: 12px; font-weight: 600; }
+        .threshold-item .value.red { color: var(--accent-red); }
+        .threshold-item .value.yellow { color: var(--accent-yellow); }
+
+        .suppression-rule {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px; background: var(--bg-primary); border-radius: 6px;
+            margin-bottom: 6px; font-size: 11px; color: var(--text-secondary);
+        }
+        .rule-toggle {
+            width: 24px; height: 12px; border-radius: 6px;
+            background: var(--accent-green); position: relative;
+        }
+        .rule-toggle::after {
+            content: ''; position: absolute; width: 8px; height: 8px;
+            border-radius: 50%; top: 2px; left: 14px; background: white;
+        }
+        .aggregation-example {
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 10px; font-size: 11px; line-height: 1.6;
+        }
+        .agg-header { color: var(--accent-cyan); font-weight: 600; margin-bottom: 4px; }
+        .agg-item { color: var(--text-secondary); padding-left: 12px; }
+        .agg-count { color: var(--accent-yellow); font-weight: 600; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span style="color: var(--text-muted)">/</span>
+            <span class="active">Alert Management</span>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-icon">&#9632;</div>
+        <div class="sidebar-icon">&#9881;</div>
+        <div class="sidebar-icon">&#8942;</div>
+        <div class="sidebar-icon">&#9675;</div>
+        <div class="sidebar-icon">&#128269;</div>
+        <div class="sidebar-icon active">&#9889;</div>
+        <div class="sidebar-icon">&#128101;</div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Alert Management & Delivery</h1>
+            <div class="header-stats">
+                <div class="stat-badge critical"><span class="count">2</span><span style="color: var(--text-muted);">Critical</span></div>
+                <div class="stat-badge warning"><span class="count">3</span><span style="color: var(--text-muted);">Warning</span></div>
+                <div class="stat-badge info"><span class="count">8</span><span style="color: var(--text-muted);">Info</span></div>
+            </div>
+        </div>
+
+        <div class="alert-grid">
+            <div class="alert-list">
+                <!-- Alert 1: Critical -->
+                <div class="alert-card selected">
+                    <div class="alert-severity critical"></div>
+                    <div class="alert-body">
+                        <div class="alert-title">Route Deviation: CARDINAL-7</div>
+                        <div class="alert-desc">Entity deviated 12km from established pattern of life. Movement bearing inconsistent with last 90 days of track history. Heading toward compound with new vehicle signatures.</div>
+                        <div class="alert-meta">
+                            <span class="alert-tag movement">Movement</span>
+                            <span class="alert-tag" style="background: rgba(239,68,68,0.12); color: var(--accent-red);">Critical</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <div class="alert-time">0342Z today</div>
+                        <div class="alert-score" style="color: var(--accent-red);">0.94</div>
+                        <div class="delivery-badges">
+                            <div class="delivery-badge active" title="Dashboard">&#9632;</div>
+                            <div class="delivery-badge active" title="Push">&#128241;</div>
+                            <div class="delivery-badge active" title="Audio">&#128264;</div>
+                            <div class="delivery-badge active" title="Briefing">&#128196;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 2: Critical -->
+                <div class="alert-card">
+                    <div class="alert-severity critical"></div>
+                    <div class="alert-body">
+                        <div class="alert-title">SIGINT Surge: Grid 38TLM</div>
+                        <div class="alert-desc">Communications volume increased 270% relative to 7-day average. Multiple new emitters detected. Temporal correlation with CARDINAL-7 deviation event.</div>
+                        <div class="alert-meta">
+                            <span class="alert-tag sigint">SIGINT</span>
+                            <span class="alert-tag trend">Trend</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <div class="alert-time">0315Z today</div>
+                        <div class="alert-score" style="color: var(--accent-red);">0.87</div>
+                        <div class="delivery-badges">
+                            <div class="delivery-badge active">&#9632;</div>
+                            <div class="delivery-badge active">&#128241;</div>
+                            <div class="delivery-badge active">&#128264;</div>
+                            <div class="delivery-badge active">&#128196;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 3: Warning -->
+                <div class="alert-card">
+                    <div class="alert-severity warning"></div>
+                    <div class="alert-body">
+                        <div class="alert-title">New Entity Correlation: FINCH-3</div>
+                        <div class="alert-desc">Probabilistic match across 3 sources (OpRep, SIGINT, OSINT). Confidence 0.76. Requires analyst validation to confirm or reject proposed association link.</div>
+                        <div class="alert-meta">
+                            <span class="alert-tag correlation">Correlation</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <div class="alert-time">2218Z yesterday</div>
+                        <div class="alert-score" style="color: var(--accent-yellow);">0.76</div>
+                        <div class="delivery-badges">
+                            <div class="delivery-badge active">&#9632;</div>
+                            <div class="delivery-badge">&#128241;</div>
+                            <div class="delivery-badge">&#128264;</div>
+                            <div class="delivery-badge active">&#128196;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 4: Warning -->
+                <div class="alert-card">
+                    <div class="alert-severity warning"></div>
+                    <div class="alert-body">
+                        <div class="alert-title">Escalating Trend: WREN-12 Communications</div>
+                        <div class="alert-desc">21-day escalating trend detected. Communications frequency +340% against 18-month stable baseline. Rate of increase accelerating over last 72 hours.</div>
+                        <div class="alert-meta">
+                            <span class="alert-tag trend">Trend</span>
+                            <span class="alert-tag sigint">SIGINT</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <div class="alert-time">1900Z yesterday</div>
+                        <div class="alert-score" style="color: var(--accent-yellow);">0.81</div>
+                        <div class="delivery-badges">
+                            <div class="delivery-badge active">&#9632;</div>
+                            <div class="delivery-badge">&#128241;</div>
+                            <div class="delivery-badge">&#128264;</div>
+                            <div class="delivery-badge active">&#128196;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert 5: Info -->
+                <div class="alert-card">
+                    <div class="alert-severity info"></div>
+                    <div class="alert-body">
+                        <div class="alert-title">Feed Degradation: Sensor Cluster East</div>
+                        <div class="alert-desc">3 of 8 feeds reporting intermittent connectivity. Affected data marked as potentially stale. Coverage gap in eastern sectors until resolved.</div>
+                        <div class="alert-meta">
+                            <span class="alert-tag health">Health</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <div class="alert-time">1830Z yesterday</div>
+                        <div class="alert-score" style="color: var(--accent-blue);">N/A</div>
+                        <div class="delivery-badges">
+                            <div class="delivery-badge active">&#9632;</div>
+                            <div class="delivery-badge">&#128241;</div>
+                            <div class="delivery-badge">&#128264;</div>
+                            <div class="delivery-badge">&#128196;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right panel: delivery config -->
+            <div class="config-panel">
+                <div class="config-card">
+                    <h3>Delivery Status: CARDINAL-7 Alert</h3>
+                    <div class="delivery-row">
+                        <div class="label"><span class="icon">&#9632;</span> Dashboard Badge</div>
+                        <div class="delivery-status delivered">Delivered 0342Z</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="label"><span class="icon">&#128241;</span> Push Notification</div>
+                        <div class="delivery-status delivered">Delivered 0342Z</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="label"><span class="icon">&#128264;</span> Audible Alert</div>
+                        <div class="delivery-status delivered">Tone-3 played 0342Z</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="label"><span class="icon">&#128196;</span> Auto-Draft Paragraph</div>
+                        <div class="delivery-status pending">Queued for next briefing</div>
+                    </div>
+                </div>
+
+                <div class="config-card">
+                    <h3>Alert Thresholds (Current User)</h3>
+                    <div class="threshold-grid">
+                        <div class="threshold-item">
+                            <div class="label">Critical Threshold</div>
+                            <div class="value red">&ge; 0.85</div>
+                        </div>
+                        <div class="threshold-item">
+                            <div class="label">Warning Threshold</div>
+                            <div class="value yellow">&ge; 0.60</div>
+                        </div>
+                        <div class="threshold-item">
+                            <div class="label">Push Delivery</div>
+                            <div class="value">Critical Only</div>
+                        </div>
+                        <div class="threshold-item">
+                            <div class="label">Audio Delivery</div>
+                            <div class="value">Critical Only</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-card">
+                    <h3>Alert Suppression Rules</h3>
+                    <div class="suppression-rule">
+                        <div class="rule-toggle"></div>
+                        <span>Aggregate same-entity alerts within 15 min window</span>
+                    </div>
+                    <div class="suppression-rule">
+                        <div class="rule-toggle"></div>
+                        <span>Suppress info-level during briefing composition</span>
+                    </div>
+                    <div class="suppression-rule">
+                        <div class="rule-toggle"></div>
+                        <span>Consolidate correlated alerts into single notification</span>
+                    </div>
+                </div>
+
+                <div class="config-card">
+                    <h3>Aggregation Example (Active)</h3>
+                    <div class="aggregation-example">
+                        <div class="agg-header">Correlated Group: Grid 38TLM Events</div>
+                        <div class="agg-item">&#8226; CARDINAL-7 route deviation <span class="agg-count">(primary)</span></div>
+                        <div class="agg-item">&#8226; SIGINT surge 270% <span class="agg-count">(correlated)</span></div>
+                        <div class="agg-item">&#8226; New vehicle signatures <span class="agg-count">(correlated)</span></div>
+                        <div style="margin-top: 6px; font-size: 10px; color: var(--text-muted);">
+                            Presented as single notification with 3 linked items rather than 3 separate alerts.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+<script>
+// Animate alert severity bars and delivery badges
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes severity-pulse {',
+        '  0%, 100% { opacity: 1; }',
+        '  50% { opacity: 0.5; }',
+        '}',
+        '.alert-severity.critical { animation: severity-pulse 1.5s ease-in-out infinite; }',
+        '@keyframes badge-glow {',
+        '  0%, 100% { box-shadow: none; }',
+        '  50% { box-shadow: 0 0 6px var(--accent-green); }',
+        '}',
+        '.delivery-badge.active { animation: badge-glow 2s ease-in-out infinite; }',
+        '.alert-card { transition: border-color 0.3s, background 0.3s; }',
+        '.alert-card:hover { border-color: var(--accent-cyan); background: rgba(0,212,255,0.02); }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Simulate a new alert arriving after 10 seconds
+    setTimeout(function() {
+        var list = document.querySelector('.alert-list');
+        if (!list) return;
+        var firstCard = list.querySelector('.alert-card');
+        if (firstCard) {
+            firstCard.style.transition = 'box-shadow 0.5s';
+            firstCard.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.4)';
+            setTimeout(function() { firstCard.style.boxShadow = 'none'; }, 2000);
+        }
+    }, 10000);
+})();
+</script>
+</body>
+</html>

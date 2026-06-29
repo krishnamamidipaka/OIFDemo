@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Operational Insight Fusion | Apex Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-teal: #14b8a6;
+            --accent-pink: #ec4899;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            height: 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-logo .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: white;
+        }
+
+        .nav-logo span {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .nav-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 24px;
+        }
+
+        .nav-breadcrumb .separator {
+            color: var(--text-muted);
+        }
+
+        .nav-breadcrumb .active {
+            color: var(--accent-cyan);
+        }
+
+        .nav-search {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            width: 320px;
+        }
+
+        .nav-search input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            width: 100%;
+        }
+
+        .nav-search input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .nav-search .search-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-actions .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .nav-actions .action-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-actions .alert-badge {
+            position: relative;
+        }
+
+        .nav-actions .alert-badge::after {
+            content: '3';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .user-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            height: calc(100vh - 48px);
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            width: 52px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 4px;
+        }
+
+        .sidebar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+
+        .sidebar-icon:hover {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+        }
+
+        .sidebar-icon.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .sidebar-spacer {
+            flex: 1;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            height: 40px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            gap: 4px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        /* Dashboard Grid */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr 340px;
+            grid-template-rows: auto 1fr 200px;
+            gap: 1px;
+            background: var(--border-color);
+            overflow: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .status-item .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+        }
+
+        .status-item .value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .status-item .value.live {
+            color: var(--accent-green);
+        }
+
+        .status-item .value.warning {
+            color: var(--accent-yellow);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-badge.green {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        .status-badge.yellow {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .status-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Card base */
+        .card {
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .card-action-btn {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-action-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--border-accent);
+        }
+
+        .card-action-btn.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .card-body {
+            flex: 1;
+            padding: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Map Panel */
+        .map-panel {
+            grid-row: 2;
+            position: relative;
+        }
+
+        .map-panel .card-body {
+            padding: 0;
+            background: #0a1628;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(30, 42, 66, 0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 42, 66, 0.3) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .map-landmass {
+            position: absolute;
+            border-radius: 40%;
+            opacity: 0.6;
+        }
+
+        .map-landmass-1 {
+            left: 15%;
+            top: 20%;
+            width: 25%;
+            height: 45%;
+            background: linear-gradient(135deg, #1a2744, #162035);
+            border: 1px solid rgba(30, 42, 66, 0.5);
+        }
+
+        .map-landmass-2 {
+            left: 45%;
+            top: 15%;
+            width: 35%;
+            height: 55%;
+            background: linear-gradient(135deg, #1a2744, #162035);
+            border: 1px solid rgba(30, 42, 66, 0.5);
+            border-radius: 30% 50% 40% 35%;
+        }
+
+        .map-landmass-3 {
+            left: 55%;
+            top: 55%;
+            width: 20%;
+            height: 30%;
+            background: linear-gradient(135deg, #1a2744, #162035);
+            border: 1px solid rgba(30, 42, 66, 0.5);
+            border-radius: 45%;
+        }
+
+        /* Heat map overlay */
+        .heat-zone {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(15px);
+        }
+
+        .heat-zone-1 {
+            left: 50%;
+            top: 30%;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.5), rgba(239, 68, 68, 0) 70%);
+        }
+
+        .heat-zone-2 {
+            left: 55%;
+            top: 40%;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.4), rgba(245, 158, 11, 0) 70%);
+        }
+
+        .heat-zone-3 {
+            left: 35%;
+            top: 35%;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.3), rgba(0, 212, 255, 0) 70%);
+        }
+
+        /* Entity tracks */
+        .entity-track {
+            position: absolute;
+            border: none;
+            height: 2px;
+        }
+
+        .track-1 {
+            left: 48%;
+            top: 35%;
+            width: 80px;
+            height: 2px;
+            background: var(--accent-cyan);
+            transform: rotate(-15deg);
+            opacity: 0.7;
+            box-shadow: 0 0 6px var(--accent-cyan);
+        }
+
+        .track-2 {
+            left: 52%;
+            top: 38%;
+            width: 60px;
+            height: 2px;
+            background: var(--accent-green);
+            transform: rotate(25deg);
+            opacity: 0.7;
+            box-shadow: 0 0 6px var(--accent-green);
+        }
+
+        /* Entity markers */
+        .entity-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid;
+            cursor: pointer;
+        }
+
+        .marker-1 {
+            left: 52%;
+            top: 32%;
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+
+        .marker-2 {
+            left: 57%;
+            top: 42%;
+            border-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+
+        .marker-3 {
+            left: 38%;
+            top: 38%;
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .marker-4 {
+            left: 60%;
+            top: 35%;
+            border-color: var(--accent-yellow);
+            background: rgba(245, 158, 11, 0.3);
+        }
+
+        .marker-5 {
+            left: 45%;
+            top: 45%;
+            border-color: var(--accent-purple);
+            background: rgba(139, 92, 246, 0.3);
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(11, 14, 23, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .map-layers {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(11, 14, 23, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .layer-toggle:hover {
+            background: var(--bg-card);
+        }
+
+        .layer-check {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            border: 1px solid var(--border-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+        }
+
+        .layer-check.checked {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+
+        /* Entity List Panel */
+        .entity-panel {
+            grid-row: 2;
+        }
+
+        .entity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .entity-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .entity-item:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-accent);
+        }
+
+        .entity-item.selected {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .entity-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .entity-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .entity-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .entity-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .entity-score {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .score-high {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .score-medium {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .score-low {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        /* Right Panel - Alerts & Details */
+        .right-panel {
+            grid-row: 2 / 4;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .alerts-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .alert-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .alert-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border-left: 3px solid;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .alert-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .alert-item.critical {
+            border-left-color: var(--accent-red);
+        }
+
+        .alert-item.warning {
+            border-left-color: var(--accent-yellow);
+        }
+
+        .alert-item.info {
+            border-left-color: var(--accent-blue);
+        }
+
+        .alert-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+        }
+
+        .alert-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+        }
+
+        .alert-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .alert-tags {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .alert-tag {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        /* AI Chat Section */
+        .chat-section {
+            border-top: 1px solid var(--border-color);
+            padding: 12px;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        .chat-input-wrapper:focus-within {
+            border-color: var(--accent-cyan);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .chat-send {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--bg-primary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Timeline Panel */
+        .timeline-panel {
+            grid-column: 1 / 3;
+        }
+
+        .timeline-panel .card-body {
+            padding: 12px 16px;
+        }
+
+        .timeline-container {
+            height: 100%;
+            position: relative;
+        }
+
+        .timeline-axis {
+            position: absolute;
+            bottom: 20px;
+            left: 40px;
+            right: 16px;
+            height: 1px;
+            background: var(--border-accent);
+        }
+
+        .timeline-labels {
+            position: absolute;
+            bottom: 4px;
+            left: 40px;
+            right: 16px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .timeline-events {
+            position: absolute;
+            top: 8px;
+            bottom: 32px;
+            left: 40px;
+            right: 16px;
+        }
+
+        .timeline-event {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timeline-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-bottom: 4px;
+        }
+
+        .timeline-stem {
+            width: 1px;
+            background: var(--border-accent);
+            flex: 1;
+        }
+
+        .timeline-event-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            position: absolute;
+            top: -14px;
+        }
+
+        /* Sparkline area chart in timeline */
+        .timeline-chart {
+            position: absolute;
+            top: 20px;
+            bottom: 32px;
+            left: 40px;
+            right: 16px;
+        }
+
+        .timeline-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .y-axis-labels {
+            position: absolute;
+            top: 20px;
+            bottom: 32px;
+            left: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-accent);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span class="separator">/</span>
+            <span class="active">Situation Workspace</span>
+        </div>
+        <div class="nav-search">
+            <span class="search-icon">&#x1F50D;</span>
+            <input type="text" placeholder="Search entities, reports, grid references...">
+        </div>
+        <div class="nav-actions">
+            <div class="action-btn alert-badge">&#x1F514;</div>
+            <div class="action-btn">&#x2699;</div>
+            <div class="user-avatar">JR</div>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-icon active" title="Workspace">&#x25A3;</div>
+            <div class="sidebar-icon" title="Map">&#x1F5FA;</div>
+            <div class="sidebar-icon" title="Timeline">&#x1F4CA;</div>
+            <div class="sidebar-icon" title="Entities">&#x25CB;</div>
+            <div class="sidebar-icon" title="Reports">&#x1F4C4;</div>
+            <div class="sidebar-icon" title="Agent Scripts">&#x26A1;</div>
+            <div class="sidebar-icon" title="Collaboration">&#x1F465;</div>
+            <div class="sidebar-spacer"></div>
+            <div class="sidebar-icon" title="Audit Log">&#x1F512;</div>
+            <div class="sidebar-icon" title="Settings">&#x2699;</div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <div class="tab active">Overview</div>
+                <div class="tab">Entities</div>
+                <div class="tab">Supply Chain</div>
+                <div class="tab">Message Traffic</div>
+                <div class="tab">Scenarios</div>
+                <div class="tab">Agent Scripts</div>
+                <div class="tab">Audit Trail</div>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard">
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="label">Data Freshness</span>
+                        <span class="value live">
+                            <span class="status-badge green"><span class="dot"></span> Live</span>
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Active Feeds</span>
+                        <span class="value">47 / 52</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Tracked Entities</span>
+                        <span class="value">342</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Open Anomalies</span>
+                        <span class="value warning">7</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Certified Dataset</span>
+                        <span class="value">v2026-0626.3</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Last Agent Run</span>
+                        <span class="value">12 min ago</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Pending Reviews</span>
+                        <span class="value">
+                            <span class="status-badge yellow"><span class="dot"></span> 2</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Map Panel -->
+                <div class="card map-panel">
+                    <div class="card-header">
+                        <span class="card-title">Geospatial View: CENTCOM AOR</span>
+                        <div class="card-actions">
+                            <span class="card-action-btn active">Heat</span>
+                            <span class="card-action-btn active">Tracks</span>
+                            <span class="card-action-btn">OOB</span>
+                            <span class="card-action-btn">Imagery</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="map-container">
+                            <div class="map-grid"></div>
+                            <div class="map-landmass map-landmass-1"></div>
+                            <div class="map-landmass map-landmass-2"></div>
+                            <div class="map-landmass map-landmass-3"></div>
+                            <div class="heat-zone heat-zone-1"></div>
+                            <div class="heat-zone heat-zone-2"></div>
+                            <div class="heat-zone heat-zone-3"></div>
+                            <div class="entity-track track-1"></div>
+                            <div class="entity-track track-2"></div>
+                            <div class="entity-marker marker-1"></div>
+                            <div class="entity-marker marker-2"></div>
+                            <div class="entity-marker marker-3"></div>
+                            <div class="entity-marker marker-4"></div>
+                            <div class="entity-marker marker-5"></div>
+                            <div class="map-legend">
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background: var(--accent-cyan)"></div>
+                                    Friendly
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background: var(--accent-red)"></div>
+                                    Hostile
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background: var(--accent-yellow)"></div>
+                                    Unknown
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background: var(--accent-purple)"></div>
+                                    Neutral
+                                </div>
+                            </div>
+                            <div class="map-layers">
+                                <div class="layer-toggle">
+                                    <div class="layer-check checked">&#x2713;</div>
+                                    Heat Map
+                                </div>
+                                <div class="layer-toggle">
+                                    <div class="layer-check checked">&#x2713;</div>
+                                    Entity Tracks
+                                </div>
+                                <div class="layer-toggle">
+                                    <div class="layer-check checked">&#x2713;</div>
+                                    Anomalies
+                                </div>
+                                <div class="layer-toggle">
+                                    <div class="layer-check"></div>
+                                    Order of Battle
+                                </div>
+                                <div class="layer-toggle">
+                                    <div class="layer-check"></div>
+                                    Supply Routes
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entity List -->
+                <div class="card entity-panel">
+                    <div class="card-header">
+                        <span class="card-title">Tracked Entities (Priority)</span>
+                        <div class="card-actions">
+                            <span class="card-action-btn active">Active</span>
+                            <span class="card-action-btn">All</span>
+                        </div>
+                    </div>
+                    <div class="card-body" style="overflow-y: auto;">
+                        <div class="entity-list">
+                            <div class="entity-item selected">
+                                <div class="entity-indicator" style="background: var(--accent-red)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity CARDINAL-7</div>
+                                    <div class="entity-meta">Route deviation detected 0342Z | Grid 38TLM</div>
+                                </div>
+                                <span class="entity-score score-high">0.94</span>
+                            </div>
+                            <div class="entity-item">
+                                <div class="entity-indicator" style="background: var(--accent-yellow)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity WREN-12</div>
+                                    <div class="entity-meta">Comms tempo +270% vs baseline | 21d trend</div>
+                                </div>
+                                <span class="entity-score score-medium">0.81</span>
+                            </div>
+                            <div class="entity-item">
+                                <div class="entity-indicator" style="background: var(--accent-yellow)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity FINCH-3</div>
+                                    <div class="entity-meta">New association link (3 sources) | Pending review</div>
+                                </div>
+                                <span class="entity-score score-medium">0.76</span>
+                            </div>
+                            <div class="entity-item">
+                                <div class="entity-indicator" style="background: var(--accent-cyan)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity SPARROW-9</div>
+                                    <div class="entity-meta">Pattern of life: normal | Last update 4 min</div>
+                                </div>
+                                <span class="entity-score score-low">0.12</span>
+                            </div>
+                            <div class="entity-item">
+                                <div class="entity-indicator" style="background: var(--accent-cyan)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity HAWK-1</div>
+                                    <div class="entity-meta">Stationary 48h | Expected behavior</div>
+                                </div>
+                                <span class="entity-score score-low">0.08</span>
+                            </div>
+                            <div class="entity-item">
+                                <div class="entity-indicator" style="background: var(--accent-purple)"></div>
+                                <div class="entity-info">
+                                    <div class="entity-name">Entity OSPREY-4</div>
+                                    <div class="entity-meta">Newly correlated | OSINT + SIGINT match</div>
+                                </div>
+                                <span class="entity-score score-medium">0.67</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Alerts + AI Chat -->
+                <div class="card right-panel">
+                    <div class="card-header">
+                        <span class="card-title">Alerts & Anomalies</span>
+                        <div class="card-actions">
+                            <span class="card-action-btn active">Active</span>
+                            <span class="card-action-btn">Dismissed</span>
+                        </div>
+                    </div>
+                    <div class="alerts-section">
+                        <div class="alert-list">
+                            <div class="alert-item critical">
+                                <div class="alert-time">0342Z today</div>
+                                <div class="alert-title">Route Deviation: CARDINAL-7</div>
+                                <div class="alert-desc">Entity deviated 12km from established pattern of life. Movement bearing inconsistent with last 90 days of track history.</div>
+                                <div class="alert-tags">
+                                    <span class="alert-tag">MOVEMENT</span>
+                                    <span class="alert-tag">HIGH CONF</span>
+                                </div>
+                            </div>
+                            <div class="alert-item critical">
+                                <div class="alert-time">0315Z today</div>
+                                <div class="alert-title">SIGINT Surge: Grid 38TLM</div>
+                                <div class="alert-desc">Communications volume increased 270% relative to 7-day average. Multiple new emitters detected.</div>
+                                <div class="alert-tags">
+                                    <span class="alert-tag">SIGINT</span>
+                                    <span class="alert-tag">TREND</span>
+                                </div>
+                            </div>
+                            <div class="alert-item warning">
+                                <div class="alert-time">2218Z yesterday</div>
+                                <div class="alert-title">New Entity Correlation: FINCH-3</div>
+                                <div class="alert-desc">Probabilistic match across 3 sources (OpRep, SIGINT, OSINT). Confidence 0.76. Requires analyst validation.</div>
+                                <div class="alert-tags">
+                                    <span class="alert-tag">CORRELATION</span>
+                                    <span class="alert-tag">REVIEW</span>
+                                </div>
+                            </div>
+                            <div class="alert-item info">
+                                <div class="alert-time">1945Z yesterday</div>
+                                <div class="alert-title">Agent Script Complete: Evening Roll-Up</div>
+                                <div class="alert-desc">Daily summary generated. 2 sections flagged for review. Published to supervisor queue.</div>
+                                <div class="alert-tags">
+                                    <span class="alert-tag">WORKFLOW</span>
+                                </div>
+                            </div>
+                            <div class="alert-item warning">
+                                <div class="alert-time">1830Z yesterday</div>
+                                <div class="alert-title">Feed Degradation: Sensor Cluster East</div>
+                                <div class="alert-desc">3 of 8 feeds reporting intermittent connectivity. Affected data marked as potentially stale.</div>
+                                <div class="alert-tags">
+                                    <span class="alert-tag">HEALTH</span>
+                                    <span class="alert-tag">SLA</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-section">
+                        <div class="chat-input-wrapper">
+                            <input type="text" class="chat-input" placeholder="Ask OIF anything... (e.g. 'What changed since last briefing?')">
+                            <div class="chat-send">&#x27A4;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Panel -->
+                <div class="card timeline-panel">
+                    <div class="card-header">
+                        <span class="card-title">Activity Timeline: Last 72 Hours</span>
+                        <div class="card-actions">
+                            <span class="card-action-btn">6h</span>
+                            <span class="card-action-btn">24h</span>
+                            <span class="card-action-btn active">72h</span>
+                            <span class="card-action-btn">7d</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline-container">
+                            <div class="y-axis-labels">
+                                <span>High</span>
+                                <span>Med</span>
+                                <span>Low</span>
+                            </div>
+                            <div class="timeline-chart">
+                                <svg viewBox="0 0 800 120" preserveAspectRatio="none">
+                                    <!-- Activity area chart -->
+                                    <defs>
+                                        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="rgba(0,212,255,0.3)"/>
+                                            <stop offset="100%" stop-color="rgba(0,212,255,0)"/>
+                                        </linearGradient>
+                                        <linearGradient id="areaGrad2" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="rgba(139,92,246,0.2)"/>
+                                            <stop offset="100%" stop-color="rgba(139,92,246,0)"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <!-- Baseline pattern area -->
+                                    <path d="M0,90 C50,85 100,80 150,82 C200,84 250,78 300,75 C350,72 400,70 450,68 C500,66 550,65 600,60 C650,55 700,40 750,20 L800,15 L800,120 L0,120 Z"
+                                          fill="url(#areaGrad)" stroke="var(--accent-cyan)" stroke-width="1.5" opacity="0.8"/>
+                                    <!-- Secondary overlay -->
+                                    <path d="M0,100 C50,98 100,95 150,96 C200,97 250,92 300,90 C350,88 400,85 450,82 C500,78 550,75 600,70 C650,60 700,50 750,35 L800,30 L800,120 L0,120 Z"
+                                          fill="url(#areaGrad2)" stroke="var(--accent-purple)" stroke-width="1" opacity="0.6"/>
+                                    <!-- Anomaly spike markers -->
+                                    <circle cx="720" cy="25" r="4" fill="var(--accent-red)" stroke="var(--accent-red)" stroke-width="2" opacity="0.8"/>
+                                    <circle cx="750" cy="20" r="4" fill="var(--accent-red)" stroke="var(--accent-red)" stroke-width="2" opacity="0.8"/>
+                                    <!-- Baseline reference line -->
+                                    <line x1="0" y1="80" x2="800" y2="80" stroke="var(--accent-yellow)" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.5"/>
+                                </svg>
+                            </div>
+                            <div class="timeline-axis"></div>
+                            <div class="timeline-labels">
+                                <span>Jun 23 0000Z</span>
+                                <span>Jun 23 1200Z</span>
+                                <span>Jun 24 0000Z</span>
+                                <span>Jun 24 1200Z</span>
+                                <span>Jun 25 0000Z</span>
+                                <span>Jun 25 1200Z</span>
+                                <span>Jun 26 0000Z</span>
+                                <span>NOW</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
+// Live animations for demo recording
+(function() {
+    const style = document.createElement('style');
+    style.textContent = [
+        '@keyframes pulse-glow {',
+        '  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }',
+        '  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.9), 0 0 40px rgba(239, 68, 68, 0.4); }',
+        '}',
+        '@keyframes data-flash {',
+        '  0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; }',
+        '}',
+        '.live-indicator { animation: pulse-glow 2s ease-in-out infinite; }',
+        '.data-updating { animation: data-flash 1s ease-in-out; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Make the first entity card pulse
+    var entityCards = document.querySelectorAll('.entity-card');
+    if (entityCards.length > 0) {
+        entityCards[0].classList.add('live-indicator');
+    }
+
+    // Simulate live clock in status bar
+    var statusBar = document.querySelector('.status-bar');
+    if (statusBar) {
+        var clockDiv = document.createElement('div');
+        clockDiv.className = 'status-item';
+        var labelSpan = document.createElement('span');
+        labelSpan.className = 'status-label';
+        labelSpan.textContent = 'ZULU TIME';
+        var valueSpan = document.createElement('span');
+        valueSpan.className = 'status-value';
+        valueSpan.style.cssText = 'color: var(--accent-cyan); font-family: monospace;';
+        clockDiv.appendChild(labelSpan);
+        clockDiv.appendChild(valueSpan);
+        statusBar.appendChild(clockDiv);
+
+        function updateClock() {
+            var now = new Date();
+            var h = String(now.getUTCHours()).padStart(2, '0');
+            var m = String(now.getUTCMinutes()).padStart(2, '0');
+            var s = String(now.getUTCSeconds()).padStart(2, '0');
+            valueSpan.textContent = h + ':' + m + ':' + s + 'Z';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    }
+
+    // Simulate periodic data freshness pulse
+    setInterval(function() {
+        var feedEl = document.querySelectorAll('.status-value')[1];
+        if (feedEl) {
+            feedEl.classList.add('data-updating');
+            setTimeout(function() { feedEl.classList.remove('data-updating'); }, 1000);
+        }
+    }, 8000);
+
+    // Simulate anomaly score micro-fluctuation
+    setInterval(function() {
+        var scoreEl = document.querySelector('.entity-card .anomaly-score');
+        if (scoreEl) {
+            var scores = ['0.94', '0.95', '0.94', '0.93', '0.94'];
+            scoreEl.textContent = scores[Math.floor(Math.random() * scores.length)];
+        }
+    }, 5000);
+})();
+</script>
+</body>
+</html>

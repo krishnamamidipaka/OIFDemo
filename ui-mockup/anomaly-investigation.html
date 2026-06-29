@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - Anomaly Investigation: CARDINAL-7</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --bg-card-hover: #1a2540;
+            --border-color: #1e2a42;
+            --border-accent: #2a3a5c;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 16px; gap: 16px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: white; }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .separator { color: var(--text-muted); }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .layout { display: flex; height: calc(100vh - 48px); }
+        .sidebar { width: 52px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+        .sidebar-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .sidebar-spacer { flex: 1; }
+
+        .main-content { flex: 1; display: grid; grid-template-columns: 1fr 380px; grid-template-rows: auto 1fr 220px; gap: 1px; background: var(--border-color); overflow: hidden; }
+
+        /* Alert banner */
+        .alert-banner {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .alert-banner .alert-icon {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(239, 68, 68, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: var(--accent-red);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        .alert-banner .alert-info { flex: 1; }
+        .alert-banner .alert-title-text { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .alert-banner .alert-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+        .alert-banner .alert-meta-badges {
+            display: flex; gap: 8px;
+        }
+
+        .meta-badge {
+            padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500;
+        }
+        .meta-badge.severity { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .meta-badge.confidence { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .meta-badge.time { background: var(--bg-secondary); color: var(--text-secondary); }
+
+        /* Map with track */
+        .investigation-map {
+            background: #0a1628;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .invest-map-grid {
+            position: absolute; inset: 0;
+            background-image: linear-gradient(rgba(30,42,66,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(30,42,66,0.3) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .invest-map-land {
+            position: absolute;
+            left: 10%; top: 10%; width: 80%; height: 80%;
+            background: linear-gradient(135deg, #1a2744, #162035);
+            border: 1px solid rgba(30, 42, 66, 0.5);
+            border-radius: 20% 30% 25% 35%;
+            opacity: 0.7;
+        }
+
+        /* Route line (normal) */
+        .route-normal {
+            position: absolute;
+            left: 20%; top: 55%; width: 45%; height: 2px;
+            background: var(--accent-green);
+            opacity: 0.4;
+            transform: rotate(-5deg);
+        }
+
+        .route-normal-label {
+            position: absolute;
+            left: 22%; top: 59%;
+            font-size: 9px; color: var(--accent-green); opacity: 0.7;
+        }
+
+        /* Deviation path */
+        .route-deviation {
+            position: absolute;
+            left: 55%; top: 35%; width: 25%; height: 2px;
+            background: var(--accent-red);
+            transform: rotate(-45deg);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .route-deviation-label {
+            position: absolute;
+            left: 63%; top: 28%;
+            font-size: 9px; color: var(--accent-red); font-weight: 500;
+        }
+
+        /* Entity position markers */
+        .invest-marker {
+            position: absolute;
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid; display: flex; align-items: center; justify-content: center;
+        }
+
+        .invest-marker.current {
+            left: 68%; top: 30%;
+            border-color: var(--accent-red); background: rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+
+        .invest-marker.origin {
+            left: 25%; top: 52%;
+            border-color: var(--accent-green); background: rgba(16, 185, 129, 0.3);
+        }
+
+        .invest-marker.staging {
+            left: 72%; top: 25%;
+            border-color: var(--accent-yellow); background: rgba(245, 158, 11, 0.3);
+            width: 18px; height: 18px;
+        }
+
+        .marker-label {
+            position: absolute;
+            font-size: 9px;
+            white-space: nowrap;
+            color: var(--text-secondary);
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .marker-label.below { top: auto; bottom: -16px; }
+
+        /* Map overlay info */
+        .map-info-overlay {
+            position: absolute;
+            top: 12px; left: 12px;
+            background: rgba(11, 14, 23, 0.92);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .map-info-overlay strong { color: var(--text-primary); }
+
+        .map-distance {
+            position: absolute;
+            left: 50%; top: 45%;
+            background: rgba(11, 14, 23, 0.85);
+            border: 1px solid var(--accent-red);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 10px;
+            color: var(--accent-red);
+            font-weight: 500;
+        }
+
+        /* Right panel: Entity detail */
+        .entity-detail {
+            grid-row: 2 / 4;
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .entity-detail-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .entity-detail-name {
+            font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;
+        }
+
+        .entity-detail-id {
+            font-size: 11px; color: var(--text-muted);
+        }
+
+        .detail-section {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-section-title {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        .detail-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 0; font-size: 12px;
+        }
+
+        .detail-row .label { color: var(--text-secondary); }
+        .detail-row .value { color: var(--text-primary); font-weight: 500; }
+        .detail-row .value.danger { color: var(--accent-red); }
+        .detail-row .value.warning { color: var(--accent-yellow); }
+
+        .pattern-of-life {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .pol-chart {
+            width: 100%; height: 80px;
+            margin-top: 8px;
+        }
+
+        .pol-chart svg { width: 100%; height: 100%; }
+
+        .correlated-sources {
+            padding: 14px 16px;
+        }
+
+        .source-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 0; font-size: 11px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .source-item:last-child { border-bottom: none; }
+
+        .source-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+
+        .source-name { color: var(--text-secondary); flex: 1; }
+        .source-time { color: var(--text-muted); font-size: 10px; }
+
+        /* Bottom: Conversational AI */
+        .ai-conversation {
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .conversation-header {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .conversation-body {
+            flex: 1;
+            padding: 12px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-msg {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .chat-msg.user {
+            align-self: flex-end;
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--text-primary);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .chat-msg.system {
+            align-self: flex-start;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .chat-msg .cite {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .conversation-input {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex; gap: 8px; align-items: center;
+        }
+
+        .conversation-input input {
+            flex: 1; background: var(--bg-secondary);
+            border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 8px 12px; color: var(--text-primary); font-size: 12px;
+            outline: none;
+        }
+
+        .conversation-input input:focus { border-color: var(--accent-cyan); }
+
+        .conversation-input .send-btn {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: var(--accent-cyan); display: flex;
+            align-items: center; justify-content: center;
+            color: var(--bg-primary); font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo"><div class="logo-icon">OIF</div><span>Apex Platform</span></div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span><span class="separator">/</span>
+            <span>Anomaly Investigation</span><span class="separator">/</span>
+            <span class="active">CARDINAL-7 Route Deviation</span>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-icon active">&#x25A3;</div>
+            <div class="sidebar-icon">&#x1F5FA;</div>
+            <div class="sidebar-icon">&#x1F4CA;</div>
+            <div class="sidebar-icon">&#x25CB;</div>
+            <div class="sidebar-icon">&#x1F50D;</div>
+            <div class="sidebar-icon">&#x26A1;</div>
+            <div class="sidebar-icon">&#x1F465;</div>
+            <div class="sidebar-spacer"></div>
+            <div class="sidebar-icon">&#x1F512;</div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Alert Banner -->
+            <div class="alert-banner">
+                <div class="alert-icon">&#x26A0;</div>
+                <div class="alert-info">
+                    <div class="alert-title-text">Anomaly Alert: CARDINAL-7 Route Deviation</div>
+                    <div class="alert-subtitle">Entity deviated 12km from 90-day established pattern. Movement bearing inconsistent with historical track.</div>
+                </div>
+                <div class="alert-meta-badges">
+                    <span class="meta-badge severity">CRITICAL</span>
+                    <span class="meta-badge confidence">Conf: 0.94</span>
+                    <span class="meta-badge time">Detected 0342Z</span>
+                </div>
+            </div>
+
+            <!-- Map Panel -->
+            <div class="investigation-map">
+                <div class="invest-map-grid"></div>
+                <div class="invest-map-land"></div>
+                <div class="route-normal"></div>
+                <div class="route-normal-label">Route AMBER (established pattern)</div>
+                <div class="route-deviation"></div>
+                <div class="route-deviation-label">DEVIATION (12km off-route)</div>
+                <div class="map-distance">12.3 km</div>
+
+                <div class="invest-marker origin">
+                    <span class="marker-label">Last known (normal) 2145Z</span>
+                </div>
+                <div class="invest-marker current">
+                    <span class="marker-label">Current position 0342Z</span>
+                </div>
+                <div class="invest-marker staging">
+                    <span class="marker-label below">New compound (imagery)</span>
+                </div>
+
+                <div class="map-info-overlay">
+                    <strong>Grid 38TLM 4219</strong><br>
+                    Bearing: 347 (NNW)<br>
+                    Velocity: 45 km/h<br>
+                    Track duration: 30 min<br>
+                    Sensor: ISR Platform Delta
+                </div>
+            </div>
+
+            <!-- Entity Detail (right) -->
+            <div class="entity-detail">
+                <div class="entity-detail-header">
+                    <div class="entity-detail-name">Entity CARDINAL-7</div>
+                    <div class="entity-detail-id">Correlated ID: CARD-007 | Track: 4417 | First observed: 28 Mar 2026</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Current Status</div>
+                    <div class="detail-row"><span class="label">Anomaly Score</span><span class="value danger">0.94 (Critical)</span></div>
+                    <div class="detail-row"><span class="label">Deviation from Pattern</span><span class="value danger">12.3 km</span></div>
+                    <div class="detail-row"><span class="label">Current Bearing</span><span class="value">347 (NNW)</span></div>
+                    <div class="detail-row"><span class="label">Velocity</span><span class="value">45 km/h</span></div>
+                    <div class="detail-row"><span class="label">Last Update</span><span class="value">0342Z (18 min ago)</span></div>
+                    <div class="detail-row"><span class="label">Coverage</span><span class="value">Continuous (ISR Delta)</span></div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title">Pattern of Life (90 days)</div>
+                    <div class="detail-row"><span class="label">Usual Route</span><span class="value">AMBER corridor (E-W)</span></div>
+                    <div class="detail-row"><span class="label">Typical Speed</span><span class="value">30-50 km/h</span></div>
+                    <div class="detail-row"><span class="label">Activity Window</span><span class="value">0200Z-0600Z (nightly)</span></div>
+                    <div class="detail-row"><span class="label">Known Stops</span><span class="value">3 locations</span></div>
+                    <div class="detail-row"><span class="label">Days Tracked</span><span class="value">89</span></div>
+                </div>
+
+                <div class="pattern-of-life">
+                    <div class="detail-section-title">Activity Trend (30 days)</div>
+                    <div class="pol-chart">
+                        <svg viewBox="0 0 300 70" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="polGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="rgba(0,212,255,0.3)"/>
+                                    <stop offset="100%" stop-color="rgba(0,212,255,0)"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Baseline band -->
+                            <rect x="0" y="35" width="270" height="20" fill="rgba(16,185,129,0.08)" rx="2"/>
+                            <!-- Activity line (normal then spike) -->
+                            <path d="M0,50 C20,48 40,52 60,49 C80,47 100,51 120,48 C140,50 160,47 180,49 C200,46 220,44 240,40 C260,30 280,15 300,5"
+                                  fill="none" stroke="var(--accent-cyan)" stroke-width="2"/>
+                            <!-- Area under spike -->
+                            <path d="M240,40 C260,30 280,15 300,5 L300,70 L240,70 Z" fill="rgba(239,68,68,0.15)"/>
+                            <!-- Threshold line -->
+                            <line x1="0" y1="30" x2="300" y2="30" stroke="var(--accent-yellow)" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.6"/>
+                            <!-- Anomaly marker -->
+                            <circle cx="295" cy="8" r="4" fill="var(--accent-red)" stroke="var(--accent-red)" stroke-width="1"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="correlated-sources">
+                    <div class="detail-section-title">Correlated Intelligence (4 sources)</div>
+                    <div class="source-item">
+                        <div class="source-dot" style="background: var(--accent-cyan)"></div>
+                        <span class="source-name">ISR Platform Delta: Track 4417 continuous</span>
+                        <span class="source-time">0342Z</span>
+                    </div>
+                    <div class="source-item">
+                        <div class="source-dot" style="background: var(--accent-blue)"></div>
+                        <span class="source-name">SIGINT: New emitters grid 38TLM (+270%)</span>
+                        <span class="source-time">0315Z</span>
+                    </div>
+                    <div class="source-item">
+                        <div class="source-dot" style="background: var(--accent-green)"></div>
+                        <span class="source-name">Imagery: 6 vehicles at compound (new)</span>
+                        <span class="source-time">0600Z (25 Jun)</span>
+                    </div>
+                    <div class="source-item">
+                        <div class="source-dot" style="background: var(--accent-yellow)"></div>
+                        <span class="source-name">HUMINT: "Unusual movement" (single source)</span>
+                        <span class="source-time">2130Z (25 Jun)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Conversation -->
+            <div class="ai-conversation">
+                <div class="conversation-header">AI Analyst: Investigation Context</div>
+                <div class="conversation-body">
+                    <div class="chat-msg user">What else was happening in this grid square during the same window?</div>
+                    <div class="chat-msg system">
+                        During the 0300-0400Z window in grid 38TLM, I found three additional indicators:<br><br>
+                        1. SIGINT detected 4 previously unobserved emitters becoming active at 0315Z, with a communications volume 270% above the 7-day average. <span class="cite">SIGINT Collection 0315Z</span><br><br>
+                        2. A friendly patrol (DAGGER-6) reported visual contact with unknown vehicle movement at approximately 0330Z, bearing north. <span class="cite">SITREP 2026-0626-0400</span><br><br>
+                        3. No OSINT indicators in this window, but commercial imagery from 0600Z yesterday shows 6 new vehicle signatures at a previously unoccupied compound 2km north of CARDINAL-7's current position. <span class="cite">Vendor B Pass 0600Z</span><br><br>
+                        The temporal and geographic convergence of these indicators is notable. Want me to generate a supplemental alert for the supervisor?
+                    </div>
+                    <div class="chat-msg user">Yes. Also check if WREN-12 comms overlap with this grid.</div>
+                    <div class="chat-msg system">
+                        Checking WREN-12 communications pattern against grid 38TLM...<br><br>
+                        Partial overlap confirmed. 3 of WREN-12's detected communications in the past 72h geolocate within 8km of CARDINAL-7's deviation point. This is a new association not previously linked. <span class="cite">SIGINT: WREN-12 geolocations</span><br><br>
+                        Proposing new correlation link: CARDINAL-7 ↔ WREN-12 (confidence 0.68, pending your validation). Supplemental alert drafted and queued for supervisor review.
+                    </div>
+                </div>
+                <div class="conversation-input">
+                    <input type="text" placeholder="Ask about this entity, related activity, or request actions...">
+                    <div class="send-btn">&#x27A4;</div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes alert-flash {',
+        '  0%, 100% { opacity: 1; }',
+        '  50% { opacity: 0.7; }',
+        '}',
+        '@keyframes marker-move {',
+        '  0%, 100% { transform: translate(0, 0); }',
+        '  50% { transform: translate(-1px, -1px); }',
+        '}'
+    ].join('\n');
+    document.head.appendChild(style);
+})();
+</script>
+</body>
+</html>

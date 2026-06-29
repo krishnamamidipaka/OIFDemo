@@ -1,0 +1,7 @@
+.DS_Store
+.claude/
+.cursor/
+.vscode/
+*.docx
+*.md
+!app/README.md

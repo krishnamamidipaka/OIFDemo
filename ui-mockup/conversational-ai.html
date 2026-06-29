@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIF - AI Analyst | Apex Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0b0e17;
+            --bg-secondary: #111827;
+            --bg-card: #151d2e;
+            --border-color: #1e2a42;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .top-nav {
+            height: 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 16px; gap: 16px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; }
+        .nav-logo .logo-icon {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: white;
+        }
+        .nav-logo span { font-weight: 600; font-size: 14px; }
+        .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: 24px; }
+        .nav-breadcrumb .active { color: var(--accent-cyan); }
+        .sidebar {
+            position: fixed; left: 0; top: 48px; width: 48px; height: calc(100vh - 48px);
+            background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; padding-top: 16px; gap: 8px;
+        }
+        .sidebar-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; font-size: 16px;
+        }
+        .sidebar-icon.active { background: rgba(0, 212, 255, 0.1); color: var(--accent-cyan); }
+        .main-content {
+            margin-left: 48px;
+            height: calc(100vh - 48px);
+            display: grid;
+            grid-template-columns: 1fr 380px;
+        }
+        /* Chat panel */
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+        .chat-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .chat-header .ai-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: white;
+        }
+        .chat-header-info h2 { font-size: 14px; font-weight: 600; }
+        .chat-header-info .sub { font-size: 11px; color: var(--text-muted); }
+        .chat-header .mode-pills {
+            margin-left: auto; display: flex; gap: 6px;
+        }
+        .mode-pill {
+            padding: 4px 10px; border-radius: 12px; font-size: 10px;
+            border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer;
+        }
+        .mode-pill.active { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,212,255,0.08); }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .message { max-width: 85%; }
+        .message.user {
+            align-self: flex-end;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px 12px 4px 12px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+        .message.ai {
+            align-self: flex-start;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px 12px 12px 4px;
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .message.ai .ai-header {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+            font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;
+        }
+        .message.ai .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-cyan); }
+        .source-tag {
+            display: inline-block;
+            padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 500;
+            margin: 2px 2px;
+        }
+        .source-tag.sensor { background: rgba(0,212,255,0.15); color: var(--accent-cyan); }
+        .source-tag.sigint { background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+        .source-tag.imagery { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+        .source-tag.humint { background: rgba(245,158,11,0.15); color: var(--accent-yellow); }
+        .source-tag.high { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .source-tag.medium { background: rgba(245,158,11,0.15); color: var(--accent-yellow); }
+        .confidence-bar {
+            display: flex; align-items: center; gap: 6px; margin: 6px 0;
+            font-size: 10px; color: var(--text-muted);
+        }
+        .conf-track { width: 60px; height: 4px; background: var(--border-color); border-radius: 2px; }
+        .conf-fill { height: 100%; border-radius: 2px; }
+        .action-buttons {
+            display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+        }
+        .action-btn {
+            padding: 5px 10px; border-radius: 5px; font-size: 10px;
+            border: 1px solid var(--border-color); background: var(--bg-primary);
+            color: var(--accent-cyan); cursor: pointer;
+        }
+        .action-btn:hover { border-color: var(--accent-cyan); }
+        .chat-input {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .chat-input input {
+            flex: 1; padding: 10px 14px; border-radius: 8px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            color: var(--text-primary); font-size: 13px; outline: none;
+        }
+        .chat-input input::placeholder { color: var(--text-muted); }
+        .chat-input input:focus { border-color: var(--accent-cyan); }
+        .send-btn {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: var(--accent-cyan); display: flex; align-items: center;
+            justify-content: center; cursor: pointer; color: white; font-size: 16px;
+        }
+        /* Context panel */
+        .context-panel {
+            background: var(--bg-secondary);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .context-section { margin-bottom: 16px; }
+        .context-section h3 {
+            font-size: 10px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+        }
+        .context-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px; margin-bottom: 8px;
+        }
+        .context-card .title { font-size: 11px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .context-card .meta { font-size: 10px; color: var(--text-muted); }
+        .context-card .highlight { color: var(--accent-cyan); }
+        .mini-map {
+            width: 100%; height: 140px; border-radius: 8px;
+            background: radial-gradient(ellipse at 60% 40%, rgba(239,68,68,0.2) 0%, transparent 50%), #0a1628;
+            border: 1px solid var(--border-color);
+            position: relative; margin-bottom: 8px;
+        }
+        .mini-map-dot {
+            position: absolute; width: 8px; height: 8px; border-radius: 50%;
+        }
+        .mini-map-label { position: absolute; font-size: 8px; color: var(--text-muted); }
+        .sources-used {
+            display: flex; flex-wrap: wrap; gap: 4px;
+        }
+        .source-badge {
+            padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: 500;
+            background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary);
+        }
+        .source-badge.active { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-logo">
+            <div class="logo-icon">OIF</div>
+            <span>Apex Platform</span>
+        </div>
+        <div class="nav-breadcrumb">
+            <span>CENTCOM</span>
+            <span style="color: var(--text-muted)">/</span>
+            <span class="active">AI Analyst</span>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-icon">&#9632;</div>
+        <div class="sidebar-icon">&#9881;</div>
+        <div class="sidebar-icon">&#8942;</div>
+        <div class="sidebar-icon active">&#9675;</div>
+        <div class="sidebar-icon">&#128269;</div>
+        <div class="sidebar-icon">&#9889;</div>
+        <div class="sidebar-icon">&#128101;</div>
+    </aside>
+
+    <main class="main-content">
+        <div class="chat-panel">
+            <div class="chat-header">
+                <div class="ai-icon">AI</div>
+                <div class="chat-header-info">
+                    <h2>AI Analyst</h2>
+                    <div class="sub">Connected to all federated sources via MCP endpoints</div>
+                </div>
+                <div class="mode-pills">
+                    <div class="mode-pill active">Analysis</div>
+                    <div class="mode-pill">Drafting</div>
+                    <div class="mode-pill">Research</div>
+                </div>
+            </div>
+
+            <div class="chat-messages">
+                <div class="message user">What changed in the northern AOR since yesterday's briefing?</div>
+
+                <div class="message ai">
+                    <div class="ai-header"><div class="ai-dot"></div>OIF AI Analyst</div>
+                    <p style="color: var(--text-primary); margin-bottom: 10px;">Three significant developments since 0600Z yesterday:</p>
+
+                    <p><strong style="color: var(--text-primary);">1. CARDINAL-7 route deviation</strong> at 0342Z today. Entity deviated 12.3km from its established 90-day pattern along Route AMBER. Movement bearing inconsistent with any previously observed behavior. Currently heading NNW at 45 km/h toward a compound with newly identified vehicle signatures.</p>
+                    <div style="margin: 4px 0;"><span class="source-tag sensor">Sensor: Track 4417</span> <span class="source-tag high">HIGH confidence</span></div>
+                    <div class="confidence-bar"><span>Confidence:</span><div class="conf-track"><div class="conf-fill" style="width: 94%; background: var(--accent-green);"></div></div><span>0.94</span></div>
+
+                    <p style="margin-top: 12px;"><strong style="color: var(--text-primary);">2. SIGINT surge in grid 38TLM</strong> beginning approximately 0315Z. Communications volume increased 270% relative to the 7-day average. Multiple previously unobserved emitters now active. Temporal and geographic correlation with CARDINAL-7's deviation point.</p>
+                    <div style="margin: 4px 0;"><span class="source-tag sigint">SIGINT Collection 0315Z</span> <span class="source-tag medium">MEDIUM confidence</span></div>
+                    <div class="confidence-bar"><span>Confidence:</span><div class="conf-track"><div class="conf-fill" style="width: 72%; background: var(--accent-yellow);"></div></div><span>0.72 (incomplete coverage window)</span></div>
+
+                    <p style="margin-top: 12px;"><strong style="color: var(--text-primary);">3. Commercial imagery confirms new infrastructure</strong> at compound near deviation endpoint. Six vehicle signatures not present in prior pass (4 days ago). Structural modification to eastern perimeter also noted.</p>
+                    <div style="margin: 4px 0;"><span class="source-tag imagery">Imagery: Commercial Vendor B</span> <span class="source-tag high">HIGH confidence</span></div>
+                    <div class="confidence-bar"><span>Confidence:</span><div class="conf-track"><div class="conf-fill" style="width: 91%; background: var(--accent-green);"></div></div><span>0.91</span></div>
+
+                    <p style="margin-top: 12px; color: var(--text-primary);">These three indicators converge temporally and geographically. Recommend elevated monitoring priority for CARDINAL-7 and grid 38TLM.</p>
+
+                    <div class="action-buttons">
+                        <div class="action-btn">Plot on Map</div>
+                        <div class="action-btn">Draft Briefing Note</div>
+                        <div class="action-btn">Show Entity Timeline</div>
+                        <div class="action-btn">Expand Sources</div>
+                    </div>
+                </div>
+
+                <div class="message user">Check if WREN-12 comms overlap with this grid.</div>
+
+                <div class="message ai">
+                    <div class="ai-header"><div class="ai-dot"></div>OIF AI Analyst</div>
+                    <p style="color: var(--text-primary); margin-bottom: 8px;">Partial overlap confirmed.</p>
+                    <p>Cross-referencing WREN-12's communications history against grid 38TLM: 3 of WREN-12's geolocated transmissions from the past 48 hours fall within 8 kilometers of CARDINAL-7's deviation point. Two of these transmissions occurred within the same 90-minute window as the route deviation.</p>
+                    <div style="margin: 8px 0;"><span class="source-tag sigint">SIGINT: WREN-12 intercepts</span> <span class="source-tag sensor">Geolocation fix</span></div>
+                    <p style="margin-top: 8px;"><strong style="color: var(--accent-yellow);">New correlation proposed:</strong> WREN-12 and CARDINAL-7 may share an operational connection not previously established. This link does not exist in the current entity graph. Confidence of association: 0.67 (moderate, based on temporal-spatial co-occurrence only).</p>
+                    <div class="action-buttons">
+                        <div class="action-btn">Accept Correlation</div>
+                        <div class="action-btn">View WREN-12 Profile</div>
+                        <div class="action-btn">Reject (Note Reason)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input">
+                <input type="text" placeholder="Ask about entities, events, or request analysis...">
+                <div class="send-btn">&#10148;</div>
+            </div>
+        </div>
+
+        <div class="context-panel">
+            <div class="context-section">
+                <h3>Active Context</h3>
+                <div class="mini-map">
+                    <div class="mini-map-dot" style="top: 35%; left: 60%; background: var(--accent-red);"></div>
+                    <div class="mini-map-dot" style="top: 50%; left: 45%; background: var(--accent-yellow);"></div>
+                    <div class="mini-map-label" style="top: 28%; left: 55%;">CARDINAL-7</div>
+                    <div class="mini-map-label" style="top: 53%; left: 40%;">WREN-12</div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>Sources Queried This Session</h3>
+                <div class="sources-used">
+                    <div class="source-badge active">ISR Platform Delta</div>
+                    <div class="source-badge active">SIGINT Collection</div>
+                    <div class="source-badge active">Commercial Imagery</div>
+                    <div class="source-badge active">CENTCOM Op Reports</div>
+                    <div class="source-badge">HUMINT (limited)</div>
+                    <div class="source-badge">OSINT</div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>Entities Referenced</h3>
+                <div class="context-card">
+                    <div class="title">CARDINAL-7 <span class="highlight">(Primary Focus)</span></div>
+                    <div class="meta">Track 4417 | Anomaly Score: 0.94 | Active tracking</div>
+                </div>
+                <div class="context-card">
+                    <div class="title">WREN-12 <span style="color: var(--accent-yellow);">(Newly Linked)</span></div>
+                    <div class="meta">Comms network | +270% tempo | Proposed correlation: 0.67</div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>Session Activity</h3>
+                <div class="context-card">
+                    <div class="meta">Queries executed: <span class="highlight">4</span></div>
+                    <div class="meta">Sources accessed: <span class="highlight">6 of 12 available</span></div>
+                    <div class="meta">New correlations proposed: <span class="highlight">1</span></div>
+                    <div class="meta">Confidence range: <span class="highlight">0.67 - 0.94</span></div>
+                </div>
+            </div>
+
+            <div class="context-section">
+                <h3>Suggested Follow-ups</h3>
+                <div class="context-card" style="cursor: pointer; border-color: rgba(0,212,255,0.3);">
+                    <div class="title" style="color: var(--accent-cyan);">"Show CARDINAL-7 pattern of life last 30 days"</div>
+                </div>
+                <div class="context-card" style="cursor: pointer; border-color: rgba(0,212,255,0.3);">
+                    <div class="title" style="color: var(--accent-cyan);">"What other entities have visited that compound?"</div>
+                </div>
+                <div class="context-card" style="cursor: pointer; border-color: rgba(0,212,255,0.3);">
+                    <div class="title" style="color: var(--accent-cyan);">"Draft a supplemental briefing note for the commander"</div>
+                </div>
+            </div>
+        </div>
+    </main>
+<script>
+// Animate typing cursor and blinking AI dot
+(function() {
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes blink-cursor {',
+        '  0%, 100% { border-right-color: var(--accent-cyan); }',
+        '  50% { border-right-color: transparent; }',
+        '}',
+        '.chat-input input { border-right: 2px solid var(--accent-cyan); animation: blink-cursor 1s step-end infinite; }',
+        '@keyframes ai-dot-pulse {',
+        '  0%, 100% { opacity: 1; transform: scale(1); }',
+        '  50% { opacity: 0.5; transform: scale(1.5); }',
+        '}',
+        '.ai-dot { animation: ai-dot-pulse 2s ease-in-out infinite; }',
+        '@keyframes fade-in-up {',
+        '  from { opacity: 0; transform: translateY(8px); }',
+        '  to { opacity: 1; transform: translateY(0); }',
+        '}',
+        '.message { animation: fade-in-up 0.4s ease-out; }',
+        '.action-btn:hover { background: rgba(0,212,255,0.1); border-color: var(--accent-cyan); transform: translateY(-1px); }',
+        '.action-btn { transition: all 0.2s; }'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Simulate typing in the input field
+    var input = document.querySelector('.chat-input input');
+    var phrases = [
+        'Show CARDINAL-7 pattern of life last 30 days',
+        'What entities have visited that compound before?',
+        'Draft a supplemental briefing note for the commander',
+        'Compare this deviation to historical escalation patterns'
+    ];
+    var phraseIdx = 0;
+    var charIdx = 0;
+    var typing = false;
+    var deleting = false;
+
+    function typeNextChar() {
+        if (!typing) return;
+        var phrase = phrases[phraseIdx];
+        if (!deleting) {
+            if (charIdx <= phrase.length) {
+                input.value = phrase.substring(0, charIdx);
+                charIdx++;
+                setTimeout(typeNextChar, 60 + Math.random() * 40);
+            } else {
+                setTimeout(function() { deleting = true; typeNextChar(); }, 3000);
+            }
+        } else {
+            if (charIdx > 0) {
+                charIdx--;
+                input.value = phrases[phraseIdx].substring(0, charIdx);
+                setTimeout(typeNextChar, 30);
+            } else {
+                deleting = false;
+                phraseIdx = (phraseIdx + 1) % phrases.length;
+                setTimeout(typeNextChar, 800);
+            }
+        }
+    }
+
+    // Start typing after 2 seconds
+    setTimeout(function() { typing = true; typeNextChar(); }, 2000);
+})();
+</script>
+</body>
+</html>
